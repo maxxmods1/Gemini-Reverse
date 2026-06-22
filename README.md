@@ -1,3 +1,5 @@
+![Banner](https://napkinsdev.s3.us-east-1.amazonaws.com/next-s3-uploads/2a5843b5-3f5e-4ccd-bd61-f1ba6d6ae267/fb866bbfc5b3.png)
+
 # Gemini-Reverse
 
 An unofficial Node.js client for [Google Gemini](https://gemini.google.com), inspired by [Gemini-API](https://github.com/HanaokaYuzu/Gemini-API) — a Python reverse engineering project by [@HanaokaYuzu](https://github.com/HanaokaYuzu).
@@ -724,6 +726,8 @@ gemini-reverse/
 [Gemini-API (Python)](https://github.com/HanaokaYuzu/Gemini-API) by [@HanaokaYuzu](https://github.com/HanaokaYuzu)
 
 [acheong08/Bard](https://github.com/acheong08/Bard)
+
+[enable-guest-mode](https://github.com/luuquangvu/Gemini-API/tree/enable-guest-mode) by [@luuquangvu](https://github.com/luuquangvu) — the Pull Request this project is based on.
 
 ---
 
