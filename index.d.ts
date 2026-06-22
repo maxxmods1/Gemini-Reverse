@@ -321,8 +321,6 @@ export declare class GemJar {
 }
 
 export interface GeminiOptions {
-    '1psid'?: string | null;
-    '1psidts'?: string | null;
     secure_1psid?: string | null;
     secure_1psidts?: string | null;
     proxy?: string | null;

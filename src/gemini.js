@@ -28,8 +28,6 @@ const BARD_SETTINGS_PAYLOAD = '[[["adaptive_device_responses_enabled","advanced_
 
 class Gemini {
     constructor({
-        '1psid': psid = null,
-        '1psidts': psidts = null,
         secure_1psid = null,
         secure_1psidts = null,
         proxy = null,
@@ -51,8 +49,8 @@ class Gemini {
         this.autoRefresh = autoRefresh;
         this.refreshInterval = refreshInterval;
         this.watchdogTimeout = watchdogTimeout;
-        const cookiePsid = secure_1psid || psid;
-        const cookiePsidts = secure_1psidts || psidts;
+        const cookiePsid = secure_1psid;
+        const cookiePsidts = secure_1psidts;
 
         this._ready = false;
         this._authed = false;

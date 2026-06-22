@@ -81,21 +81,19 @@ Import the package and initialize a client with your cookies. After initializati
 const { Gemini } = require('gemini-reverse');
 
 const client = new Gemini({
-    '1psid': 'YOUR_SECURE_1PSID',
-    '1psidts': 'YOUR_SECURE_1PSIDTS', // optional
-    proxy: null,                       // optional, e.g. 'http://host:port'
-    timeout: 300000,                   // request timeout in ms, default 300000
-    autoClose: false,                  // auto-close client after inactivity
-    closeDelay: 300000,                // inactivity delay before closing in ms
-    autoRefresh: true,                 // auto-refresh cookies + start watchdog
-    refreshInterval: 540000,           // cookie refresh interval in ms
-    verbose: false,                    // enable verbose logging
+    secure_1psid: 'YOUR_SECURE_1PSID',
+    secure_1psidts: 'YOUR_SECURE_1PSIDTS', // optional
+    proxy: null,                            // optional, e.g. 'http://host:port'
+    timeout: 300000,                        // request timeout in ms, default 300000
+    autoClose: false,                       // auto-close client after inactivity
+    closeDelay: 300000,                     // inactivity delay before closing in ms
+    autoRefresh: true,                      // auto-refresh cookies + start watchdog
+    refreshInterval: 540000,               // cookie refresh interval in ms
+    verbose: false,                         // enable verbose logging
 });
 
 await client.init(); // optional — called automatically on first use
 ```
-
-> You can also use `secure_1psid` / `secure_1psidts` as aliases for `1psid` / `1psidts`.
 
 > `init()` is optional. Every method calls it internally before running. Call it explicitly if you want to catch initialization errors early (e.g. expired cookies) before sending any prompts.
 
@@ -128,7 +126,7 @@ Create a `ChatSession` via `newChat()` and call `generateContent` on it. It retu
 ```js
 const { Gemini } = require('gemini-reverse');
 
-const client = new Gemini({ '1psid': 'YOUR_COOKIE' });
+const client = new Gemini({ secure_1psid: 'YOUR_COOKIE' });
 const chat = client.newChat();
 
 const response = await chat.generateContent({ prompt: 'What is the capital of France?' });
@@ -157,7 +155,7 @@ Use `newChat()` to create a `ChatSession` object and send messages through it. T
 ```js
 const { Gemini } = require('gemini-reverse');
 
-const client = new Gemini({ '1psid': 'YOUR_COOKIE' });
+const client = new Gemini({ secure_1psid: 'YOUR_COOKIE' });
 const chat = client.newChat();
 
 const res1 = await chat.generateContent({ prompt: 'My name is Alice.' });
@@ -401,7 +399,7 @@ When using thinking-capable models, the model's internal reasoning is exposed vi
 ```js
 const { Gemini, Model } = require('gemini-reverse');
 
-const client = new Gemini({ '1psid': 'YOUR_COOKIE' });
+const client = new Gemini({ secure_1psid: 'YOUR_COOKIE' });
 const chat = client.newChat({ model: Model.BASIC_FLASH });
 const response = await chat.generateContent({ prompt: 'What is 17 × 23?' });
 
@@ -578,7 +576,7 @@ The client detects your account's capability tier at initialization and exposes 
 ```js
 const { Gemini, AccountStatus } = require('gemini-reverse');
 
-const client = new Gemini({ '1psid': 'YOUR_COOKIE' });
+const client = new Gemini({ secure_1psid: 'YOUR_COOKIE' });
 await client.init();
 
 if (client.accountStatus === AccountStatus.AVAILABLE) {
@@ -733,4 +731,4 @@ gemini-reverse/
 
 **Disclaimer:** This is an unofficial package and is not affiliated with or endorsed by Google. Cookie-based authentication may break if Google changes its internal API. Use at your own risk.
 
-**License:** MIT
+**License:** [MIT](LICENSE)
