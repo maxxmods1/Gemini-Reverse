@@ -721,6 +721,16 @@ class Gemini {
         }
     }
 
+    async _getFullSizeImage(cid, rid, rcid, imageId) {
+        try {
+            const payload = [[[null, null, null, [null, null, null, null, null, '']], [imageId, 0], null, [19, ''], null, null, null, null, null, ''], [rid, rcid, cid, null, ''], 1, 0, 1];
+            const response = await this._batchExecute([new RPCData({ rpcid: GRPC.GET_FULL_SIZE_IMAGE, payload: JSON.stringify(payload) })]);
+            const responseData = extractJsonFromResponse(response.data);
+            const bodyStr = getNestedValue(responseData, [0, 2], '[]');
+            return getNestedValue(JSON.parse(bodyStr), [0]);
+        } catch { return null; }
+    }
+
     _parseCandidate(candidateData, cid, rid, rcid) {
         let text = getNestedValue(candidateData, [1, 0], '');
         if (CARD_CONTENT_RE.test(text)) text = getNestedValue(candidateData, [22, 0]) || text;
@@ -731,7 +741,7 @@ class Gemini {
         const webImages = [];
         for (const [imgIdx, wi] of (getNestedValue(candidateData, [12, 1], []) || []).entries()) {
             const url = getNestedValue(wi, [0, 0, 0]);
-            if (url) webImages.push({ url, alt: getNestedValue(wi, [0, 4], ''), type: 'web' });
+            if (url) webImages.push(new WebImage({ url, title: `[Image ${imgIdx + 1}]`, alt: getNestedValue(wi, [0, 4], ''), proxy: this.proxy }));
         }
 
         const generatedImages = [];
@@ -742,7 +752,9 @@ class Gemini {
         for (const [imgIdx, gi] of genImgSources.entries()) {
             const url = getNestedValue(gi, [0, 3, 3]);
             if (url) {
-                generatedImages.push({ url, alt: getNestedValue(gi, [0, 3, 2], ''), type: 'generated' });
+                let imageId = getNestedValue(gi, [1, 0]);
+                if (!imageId) imageId = `http://googleusercontent.com/image_generation_content/${imgIdx}`;
+                generatedImages.push(new GeneratedImage({ url, title: `[Generated Image ${imgIdx}]`, alt: getNestedValue(gi, [0, 3, 2], ''), proxy: this.proxy, client_ref: this, cid, rid, rcid, image_id: imageId }));
             }
         }
 
@@ -751,7 +763,7 @@ class Gemini {
         if (videoInfo) {
             const urls = getNestedValue(videoInfo, [0, 7], []);
             if (Array.isArray(urls) && urls.length >= 2) {
-                generatedVideos.push({ url: urls[1], thumbnail: urls[0] });
+                generatedVideos.push(new GeneratedVideo({ url: urls[1], thumbnail: urls[0], cid, rid, rcid, client_ref: this, proxy: this.proxy }));
             }
         }
 
@@ -765,7 +777,7 @@ class Gemini {
             const mp4List = getNestedValue(mediaData, [1, 1, 7], []);
             if (Array.isArray(mp4List) && mp4List.length >= 2) { mp4Thumb = mp4List[0]; mp4Url = mp4List[1]; }
             if (mp3Url || mp4Url) {
-                generatedMedia.push({ url: mp4Url, thumbnail: mp4Thumb, mp3_url: mp3Url, mp3_thumbnail: mp3Thumb });
+                generatedMedia.push(new GeneratedMedia({ url: mp4Url, thumbnail: mp4Thumb, mp3_url: mp3Url, mp3_thumbnail: mp3Thumb, cid, rid, rcid, client_ref: this, proxy: this.proxy }));
             }
         }
 

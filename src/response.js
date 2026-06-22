@@ -21,9 +21,9 @@ class Response {
         this.images = images;
         this.videos = videos;
         this.media = media;
-        this._cid = cid;
-        this._rid = rid;
-        this._rcid = rcid;
+        Object.defineProperty(this, '_cid', { value: cid, enumerable: false, writable: true });
+        Object.defineProperty(this, '_rid', { value: rid, enumerable: false, writable: true });
+        Object.defineProperty(this, '_rcid', { value: rcid, enumerable: false, writable: true });
     }
 
     toString() { return this.text; }
