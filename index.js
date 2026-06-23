@@ -9,7 +9,7 @@ const { ModelOutput, Candidate } = require('./src/types/output');
 const { Gem, GemJar } = require('./src/types/gem');
 const { ChatTurn, ChatHistory, ChatInfo } = require('./src/types/chat');
 const { DeepResearchPlan, DeepResearchStatus, DeepResearchResult } = require('./src/types/research');
-const { WebImage, GeneratedImage, GeneratedVideo, GeneratedMedia } = require('./src/types/media');
+const { Image, WebImage, GeneratedImage, Video, GeneratedVideo, GeneratedMedia } = require('./src/types/media');
 
 module.exports = {
     Gemini,
@@ -36,8 +36,10 @@ module.exports = {
     DeepResearchPlan,
     DeepResearchStatus,
     DeepResearchResult,
+    Image,
     WebImage,
     GeneratedImage,
+    Video,
     GeneratedVideo,
     GeneratedMedia,
 };

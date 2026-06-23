@@ -31,6 +31,7 @@ function decodeHtml(str) {
 class Candidate {
     constructor({
         rcid,
+        index = 0,
         text,
         text_delta = null,
         thoughts = null,
@@ -40,7 +41,9 @@ class Candidate {
         generated_videos = [],
         generated_media = [],
         deep_research_plan = null,
+        done = false,
     } = {}) {
+        this.index = index;
         this.rcid = rcid;
         this.text = decodeHtml(text);
         this.text_delta = text_delta;
@@ -51,61 +54,81 @@ class Candidate {
         this.generated_videos = generated_videos;
         this.generated_media = generated_media;
         this.deep_research_plan = deep_research_plan;
+        this.done = done;
     }
 
-    get images() {
-        return [...this.web_images, ...this.generated_images];
-    }
+    get images() { return [...this.web_images, ...this.generated_images]; }
+    get videos() { return this.generated_videos; }
+    get media() { return this.generated_media; }
 
     toString() { return this.text; }
 
     [inspect.custom]() {
-        const lines = [`Candidate {`];
-        lines.push(`  rcid: '${this.rcid}'`);
-        lines.push(`  text: ${inspect(this.text)}`);
-        if (this.thoughts) lines.push(`  thoughts: ${inspect(this.thoughts)}`);
-        if (this.web_images.length) lines.push(`  web_images: ${inspect(this.web_images)}`);
-        if (this.generated_images.length) lines.push(`  generated_images: ${inspect(this.generated_images)}`);
-        if (this.generated_videos.length) lines.push(`  generated_videos: ${inspect(this.generated_videos)}`);
-        if (this.generated_media.length) lines.push(`  generated_media: ${inspect(this.generated_media)}`);
-        if (this.deep_research_plan) lines.push(`  deep_research_plan: DeepResearchPlan { research_id: '${this.deep_research_plan.research_id}' }`);
-        lines.push('}');
+        const lines = [`  Candidate {`];
+        lines.push(`    index: ${this.index}`);
+        lines.push(`    rcid: '${this.rcid}'`);
+        lines.push(`    done: ${this.done}`);
+        lines.push(`    text: ${inspect(this.text)}`);
+        if (this.thoughts) lines.push(`    thoughts: ${inspect(this.thoughts)}`);
+        if (this.images.length) lines.push(`    images: [${this.images.length}]`);
+        if (this.videos.length) lines.push(`    videos: [${this.videos.length}]`);
+        if (this.media.length) lines.push(`    media: [${this.media.length}]`);
+        if (this.deep_research_plan) lines.push(`    deep_research_plan: '${this.deep_research_plan.research_id}'`);
+        lines.push(`  }`);
         return lines.join('\n');
     }
 }
 
 class ModelOutput {
-    constructor(metadata, candidates, chosen = 0) {
-        this.metadata = metadata;
+    constructor(metadata, candidates, { chosen = 0, model = '', gem = null } = {}) {
+        this.cid = metadata?.[0] || '';
+        this.rid = metadata?.[1] || '';
+        this.model = model;
+        this.gem = gem;
+        this.created = Date.now();
         this.candidates = candidates;
         this.chosen = chosen;
+        this._metadata = metadata;
     }
 
-    get text() { return this.candidates[this.chosen].text; }
-    get text_delta() { return this.candidates[this.chosen].text_delta || ''; }
-    get thoughts() { return this.candidates[this.chosen].thoughts; }
-    get thoughts_delta() { return this.candidates[this.chosen].thoughts_delta || ''; }
-    get images() { return this.candidates[this.chosen].images; }
-    get videos() { return this.candidates[this.chosen].generated_videos || []; }
-    get media() { return this.candidates[this.chosen].generated_media || []; }
-    get deep_research_plan() { return this.candidates[this.chosen].deep_research_plan || null; }
-    get rcid() { return this.candidates[this.chosen].rcid; }
+    get rcid() { return this.candidates[this.chosen]?.rcid || ''; }
+    get done() { return this.candidates.length > 0 && this.candidates.every(c => c.done); }
+
+    get text() { return this.candidates[this.chosen]?.text || ''; }
+    get text_delta() { return this.candidates[this.chosen]?.text_delta || ''; }
+    get thoughts() { return this.candidates[this.chosen]?.thoughts || null; }
+    get thoughts_delta() { return this.candidates[this.chosen]?.thoughts_delta || ''; }
+    get images() { return this.candidates[this.chosen]?.images || []; }
+    get videos() { return this.candidates[this.chosen]?.videos || []; }
+    get media() { return this.candidates[this.chosen]?.media || []; }
+    get deep_research_plan() { return this.candidates[this.chosen]?.deep_research_plan || null; }
+
+    get metadata() { return this._metadata; }
+    set metadata(v) { this._metadata = v; }
+
+    async saveAll({ path = 'temp', verbose = false } = {}) {
+        const c = this.candidates[this.chosen];
+        if (!c) return { images: [], videos: [], media: [] };
+        const images = await Promise.all(c.images.map(img => img.save({ path, verbose })));
+        const videos = await Promise.all(c.videos.map(vid => vid.save({ savePath: path, verbose })));
+        const media = await Promise.all(c.media.map(m => m.save({ savePath: path, verbose })));
+        return { images, videos, media };
+    }
 
     toString() { return this.text; }
 
     [inspect.custom]() {
-        const [cid, rid] = this.metadata || [];
         const lines = ['ModelOutput {'];
-        if (cid) lines.push(`  cid: '${cid}'`);
-        if (rid) lines.push(`  rid: '${rid}'`);
+        lines.push(`  cid: '${this.cid}'`);
+        lines.push(`  rid: '${this.rid}'`);
         lines.push(`  rcid: '${this.rcid}'`);
-        lines.push(`  text: ${inspect(this.text)}`);
-        if (this.thoughts) lines.push(`  thoughts: ${inspect(this.thoughts)}`);
-        lines.push(`  images: ${inspect(this.images)}`);
-        lines.push(`  videos: ${inspect(this.videos)}`);
-        lines.push(`  media: ${inspect(this.media)}`);
-        if (this.deep_research_plan) lines.push(`  deep_research_plan: DeepResearchPlan { research_id: '${this.deep_research_plan.research_id}' }`);
-        if (this.candidates.length > 1) lines.push(`  candidates: [ ${this.candidates.length} total, chosen: ${this.chosen} ]`);
+        lines.push(`  model: '${this.model}'`);
+        if (this.gem) lines.push(`  gem: '${this.gem}'`);
+        lines.push(`  created: ${this.created}`);
+        lines.push(`  done: ${this.done}`);
+        lines.push(`  candidates: [`);
+        for (const c of this.candidates) lines.push(inspect(c));
+        lines.push(`  ]`);
         lines.push('}');
         return lines.join('\n');
     }

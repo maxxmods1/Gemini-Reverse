@@ -68,6 +68,7 @@ export declare const ErrorCode: {
     readonly MODEL_INCONSISTENT: 1050;
     readonly MODEL_HEADER_INVALID: 1052;
     readonly IP_TEMPORARILY_BLOCKED: 1060;
+    readonly FEATURE_NOT_AVAILABLE: number;
 };
 
 export declare const GRPC: Record<string, string>;
@@ -119,32 +120,102 @@ export declare class RPCData {
     toString(): string;
 }
 
-export declare class WebImage {
+export interface SaveImageOptions {
+    path?: string;
+    filename?: string | null;
+    verbose?: boolean;
+}
+
+export interface SaveGeneratedImageOptions extends SaveImageOptions {
+    fullSize?: boolean;
+}
+
+export interface SaveVideoOptions {
+    savePath?: string;
+    filename?: string | null;
+    verbose?: boolean;
+}
+
+export interface SaveVideoResult {
+    video: string;
+    video_thumbnail: string | null;
+}
+
+export interface SaveMediaResult {
+    mp4: string | null;
+    mp3: string | null;
+    mp4_thumbnail: string | null;
+    mp3_thumbnail: string | null;
+}
+
+export interface SaveAllResult {
+    images: string[];
+    videos: SaveVideoResult[];
+    media: SaveMediaResult[];
+}
+
+export declare class Image {
     url: string;
+    title: string;
     alt: string;
-    type: 'web';
-    constructor(opts: { url: string; alt?: string });
+    proxy: string | null;
+    client_ref: Gemini | null;
+    constructor(opts?: { url?: string; title?: string; alt?: string; proxy?: string | null; client_ref?: Gemini | null });
+    save(opts?: SaveImageOptions): Promise<string>;
+    toString(): string;
 }
 
-export declare class GeneratedImage {
-    url: string;
-    alt: string;
-    type: 'generated';
-    constructor(opts: { url: string; alt?: string });
+export declare class WebImage extends Image {
+    constructor(opts?: { url?: string; title?: string; alt?: string; proxy?: string | null; client_ref?: Gemini | null });
 }
 
-export declare class GeneratedVideo {
-    url: string;
-    thumbnail: string;
-    constructor(opts: { url: string; thumbnail?: string });
+export declare class GeneratedImage extends Image {
+    cid: string;
+    rid: string;
+    rcid: string;
+    image_id: string;
+    constructor(opts?: {
+        url?: string; title?: string; alt?: string; proxy?: string | null; client_ref?: Gemini | null;
+        cid?: string; rid?: string; rcid?: string; image_id?: string;
+    });
+    save(opts?: SaveGeneratedImageOptions): Promise<string>;
 }
 
-export declare class GeneratedMedia {
+export declare class Video {
     url: string;
-    thumbnail: string;
+    title: string;
+    proxy: string | null;
+    client_ref: Gemini | null;
+    constructor(opts?: { url?: string; title?: string; proxy?: string | null; client_ref?: Gemini | null });
+    save(opts?: SaveVideoOptions): Promise<SaveVideoResult>;
+    toString(): string;
+}
+
+export declare class GeneratedVideo extends Video {
+    thumbnail: string | null;
+    cid: string;
+    rid: string;
+    rcid: string;
+    constructor(opts?: {
+        url?: string; thumbnail?: string | null; cid?: string; rid?: string; rcid?: string;
+        client_ref?: Gemini | null; proxy?: string | null;
+    });
+    save(opts?: SaveVideoOptions): Promise<SaveVideoResult>;
+}
+
+export declare class GeneratedMedia extends Video {
+    thumbnail: string | null;
     mp3_url: string;
-    mp3_thumbnail: string;
-    constructor(opts: { url?: string; thumbnail?: string; mp3_url?: string; mp3_thumbnail?: string });
+    mp3_thumbnail: string | null;
+    cid: string;
+    rid: string;
+    rcid: string;
+    constructor(opts?: {
+        url?: string; thumbnail?: string | null; mp3_url?: string; mp3_thumbnail?: string | null;
+        cid?: string; rid?: string; rcid?: string; client_ref?: Gemini | null; proxy?: string | null;
+    });
+    save(opts?: SaveVideoOptions): Promise<SaveMediaResult>;
+    toString(): string;
 }
 
 export declare class DeepResearchPlan {
@@ -201,6 +272,7 @@ export declare class DeepResearchResult {
 }
 
 export declare class Candidate {
+    index: number;
     rcid: string;
     text: string;
     text_delta: string | null;
@@ -211,8 +283,10 @@ export declare class Candidate {
     generated_videos: GeneratedVideo[];
     generated_media: GeneratedMedia[];
     deep_research_plan: DeepResearchPlan | null;
+    done: boolean;
     constructor(opts: {
         rcid: string;
+        index?: number;
         text: string;
         text_delta?: string | null;
         thoughts?: string | null;
@@ -222,16 +296,31 @@ export declare class Candidate {
         generated_videos?: GeneratedVideo[];
         generated_media?: GeneratedMedia[];
         deep_research_plan?: DeepResearchPlan | null;
+        done?: boolean;
     });
     get images(): (WebImage | GeneratedImage)[];
+    get videos(): GeneratedVideo[];
+    get media(): GeneratedMedia[];
     toString(): string;
 }
 
 export declare class ModelOutput {
-    metadata: (string | null)[];
+    cid: string;
+    rid: string;
+    model: string;
+    gem: string | null;
+    created: number;
     candidates: Candidate[];
     chosen: number;
-    constructor(metadata: (string | null)[], candidates: Candidate[], chosen?: number);
+
+    constructor(
+        metadata: (string | null)[],
+        candidates: Candidate[],
+        opts?: { chosen?: number; model?: string; gem?: string | null },
+    );
+
+    get rcid(): string;
+    get done(): boolean;
     get text(): string;
     get text_delta(): string;
     get thoughts(): string | null;
@@ -240,26 +329,10 @@ export declare class ModelOutput {
     get videos(): GeneratedVideo[];
     get media(): GeneratedMedia[];
     get deep_research_plan(): DeepResearchPlan | null;
-    get rcid(): string;
-    toString(): string;
-}
+    get metadata(): (string | null)[];
+    set metadata(v: (string | null)[]);
 
-export declare class Response {
-    text: string;
-    thoughts: string | null;
-    images: (WebImage | GeneratedImage)[];
-    videos: GeneratedVideo[];
-    media: GeneratedMedia[];
-    constructor(opts: {
-        text?: string;
-        thoughts?: string | null;
-        images?: (WebImage | GeneratedImage)[];
-        videos?: GeneratedVideo[];
-        media?: GeneratedMedia[];
-        cid?: string;
-        rid?: string;
-        rcid?: string;
-    });
+    saveAll(opts?: { path?: string; verbose?: boolean }): Promise<SaveAllResult>;
     toString(): string;
 }
 
@@ -324,7 +397,7 @@ export interface GeminiOptions {
     secure_1psid?: string | null;
     secure_1psidts?: string | null;
     proxy?: string | null;
-    cookies?: Record<string, string>;
+    cookies?: Record<string, string> | string | Array<{ name: string; value: string }>;
     timeout?: number;
     autoClose?: boolean;
     closeDelay?: number;
@@ -345,6 +418,14 @@ export interface GenerateContentOptions {
     prompt: string;
     files?: string[] | null;
     deep_research?: boolean;
+    extended_thinking?: boolean;
+}
+
+export interface AskOptions {
+    model?: ModelInput;
+    gem?: Gem | string | null;
+    temporary?: boolean;
+    files?: string[] | null;
     extended_thinking?: boolean;
 }
 
@@ -370,7 +451,8 @@ export interface SetGemOptions {
 
 export interface AccountInfo {
     status: { code: number | undefined; name: string };
-    models: { id: string; name: string; display: string; available: boolean }[];
+    models: { id: string; name: string; display_name: string; available: boolean }[];
+    usage: Record<string, unknown>;
     quotas: Record<string, unknown>;
     abuse_clean: boolean | null;
 }
@@ -398,12 +480,13 @@ export declare class Gemini {
     close(delay?: number): Promise<void>;
 
     newChat(opts?: NewChatOptions): ChatSession;
+    ask(prompt: string, opts?: AskOptions): Promise<ModelOutput>;
 
     models(): Promise<AvailableModel[]>;
     account(): Promise<AccountInfo>;
 
     chats(): Promise<unknown[]>;
-    readChat(cid: string, limit?: number): Promise<{ role: string; text: string }[]>;
+    readChat(cid: string, limit?: number): Promise<{ role: string; text: string; images?: (WebImage | GeneratedImage)[]; videos?: GeneratedVideo[]; media?: GeneratedMedia[] }[]>;
     deleteChat(cid: string): Promise<void>;
 
     gems(): Promise<{ id: string; name: string; description: string; prompt: string | null; predefined: boolean }[]>;
@@ -411,7 +494,7 @@ export declare class Gemini {
     setGem(opts: SetGemOptions): Promise<{ id: string; name: string; description: string; prompt: string; predefined: boolean }>;
     delGem(gem: { id: string } | string): Promise<void>;
 
-    research(prompt: string, opts?: ResearchOptions): Promise<{ plan: DeepResearchPlan; text?: string; done?: boolean }>;
+    research(prompt: string, opts?: ResearchOptions): Promise<DeepResearchResult>;
 }
 
 export declare class ChatSession {
@@ -432,8 +515,9 @@ export declare class ChatSession {
     get rcid(): string;
     set rcid(v: string);
 
-    generateContent(opts: GenerateContentOptions): Promise<Response>;
-    generateContentStream(opts: GenerateContentOptions): AsyncGenerator<string>;
+    generateContent(opts: GenerateContentOptions): Promise<ModelOutput>;
+    generateContentStream(opts: GenerateContentOptions): AsyncGenerator<ModelOutput>;
 
+    chooseCandidate(index: number): void;
     delete(): Promise<void>;
 }

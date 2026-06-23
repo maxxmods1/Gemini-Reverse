@@ -348,6 +348,11 @@ class Gemini {
         };
     }
 
+    async ask(prompt, { model, gem, temporary, files, extended_thinking } = {}) {
+        const chat = this.newChat({ model, gem, temporary });
+        return chat.generateContent({ prompt, files, extended_thinking });
+    }
+
     async close(delay = 0) {
         if (delay) await sleep(delay);
         this._ready = false;
@@ -572,13 +577,13 @@ class Gemini {
                     lThought[rcid] = lThought[`idx_${i}`] = nfth;
 
                     outCands.push(new Candidate({
-                        rcid, text, text_delta: td, thoughts: thoughts || null, thoughts_delta: thdelta,
+                        rcid, index: i, text, text_delta: td, thoughts: thoughts || null, thoughts_delta: thdelta,
                         web_images: webImgs, generated_images: genImgs, generated_videos: genVideos,
-                        generated_media: genMedia, deep_research_plan: drPlan,
+                        generated_media: genMedia, deep_research_plan: drPlan, done: isCompleted,
                     }));
                 }
 
-                if (outCands.length) { isThinking = false; isQueueing = false; outs.push(new ModelOutput(getNestedValue(pj, [1], []), outCands)); }
+                if (outCands.length) { isThinking = false; isQueueing = false; outs.push(new ModelOutput(getNestedValue(pj, [1], []), outCands, { model: model?.model_name || '', gem: gemId || null })); }
             }
             return outs;
         };
@@ -770,8 +775,8 @@ class Gemini {
                 const [td, nft] = getDeltaByFpLen(text, lastSentText, isCompleted || indicator == null);
                 lTxt[rcid] = lTxt[`idx_${i}`] = nft;
 
-                const cand = new Candidate({ rcid, text, text_delta: td });
-                yield new ModelOutput(getNestedValue(pj, [1], []), [cand]);
+                const cand = new Candidate({ rcid, index: i, text, text_delta: td, done: isCompleted });
+                yield new ModelOutput(getNestedValue(pj, [1], []), [cand], { model: 'gemini-3-flash' });
             }
         }
     }
@@ -899,7 +904,7 @@ class Gemini {
                             const rcid = getNestedValue(cd, [0]);
                             if (!rcid) continue;
                             const [text, thoughts, webImgs, genImgs, genVids, genMedia] = this._parseCandidate(cd, cid, '', rcid);
-                            turns.push({ role: 'model', text, model_output: new ModelOutput([cid, ''], [new Candidate({ rcid, text, thoughts, web_images: webImgs, generated_images: genImgs, generated_videos: genVids, generated_media: genMedia })]) });
+                            turns.push({ role: 'model', text, model_output: new ModelOutput([cid, ''], [new Candidate({ rcid, index: 0, text, thoughts, web_images: webImgs, generated_images: genImgs, generated_videos: genVids, generated_media: genMedia, done: true })]) });
                         }
                     }
                     const userText = getNestedValue(convTurn, [2, 0, 0], '');

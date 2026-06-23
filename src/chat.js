@@ -2,7 +2,6 @@
 
 const { DEFAULT_METADATA } = require('./constants');
 const { Model } = require('./constants');
-const { Response } = require('./response');
 
 class ChatSession {
     constructor(client, { model = Model.UNSPECIFIED, temporary = false, gem = null, metadata = null } = {}) {
@@ -40,16 +39,7 @@ class ChatSession {
             deep_research, extended_thinking,
         });
         this.lastOutput = output;
-        return new Response({
-            text: output.text,
-            thoughts: output.thoughts,
-            images: output.images,
-            videos: output.videos,
-            media: output.media,
-            cid: this.cid,
-            rid: this.rid,
-            rcid: this.rcid,
-        });
+        return output;
     }
 
     async *generateContentStream({ prompt, files = null, deep_research = false, extended_thinking = false } = {}) {
@@ -61,11 +51,18 @@ class ChatSession {
             deep_research, extended_thinking,
         })) {
             lastOutput = out;
-            yield out.text_delta || '';
+            yield out;
         }
         if (lastOutput) {
             this.lastOutput = lastOutput;
         }
+    }
+
+    chooseCandidate(index) {
+        if (!this.lastOutput) throw new Error('No response yet.');
+        if (index < 0 || index >= this.lastOutput.candidates.length) throw new Error('Invalid candidate index.');
+        this.rcid = this.lastOutput.candidates[index].rcid;
+        this.lastOutput.chosen = index;
     }
 
     async delete() {

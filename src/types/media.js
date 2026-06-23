@@ -7,6 +7,11 @@ const crypto = require('crypto');
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+function sanitizeFilename(str, maxLen = 50) {
+    if (!str) return '';
+    return str.replace(/[^a-zA-Z0-9\s_-]/g, '').replace(/\s+/g, '_').slice(0, maxLen).replace(/_+$/, '');
+}
+
 function parseProxy(proxyStr) {
     if (!proxyStr) return undefined;
     try {
@@ -37,7 +42,7 @@ class Image {
         if (!filename || !path.extname(filename)) {
             const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
             const urlHash = crypto.createHash('sha256').update(this._getUrlForHash()).digest('hex').slice(0, 10);
-            const baseName = filename ? path.parse(filename).name : 'image';
+            const baseName = filename ? path.parse(filename).name : (sanitizeFilename(this.alt) || 'image');
             filename = `${timestamp}_${urlHash}_${baseName}`;
         }
         fs.mkdirSync(savePath, { recursive: true });
@@ -132,7 +137,7 @@ class GeneratedImage extends Image {
         if (!filename || !path.extname(filename)) {
             const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
             const urlHash = crypto.createHash('sha256').update(this._getUrlForHash()).digest('hex').slice(0, 10);
-            const baseName = filename ? path.parse(filename).name : 'image';
+            const baseName = filename ? path.parse(filename).name : (sanitizeFilename(this.alt) || 'generated_image');
             filename = `${timestamp}_${urlHash}_${baseName}`;
         }
         fs.mkdirSync(savePath, { recursive: true });

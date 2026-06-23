@@ -29,6 +29,7 @@ An unofficial Node.js client for [Google Gemini](https://gemini.google.com), ins
   - [Initialization](#initialization)
   - [Anonymous Mode](#anonymous-mode)
   - [Generate Content](#generate-content)
+  - [One-Shot Prompt](#one-shot-prompt)
   - [Response Object](#response-object)
   - [Generate Content with Files](#generate-content-with-files)
   - [Conversations Across Multiple Turns](#conversations-across-multiple-turns)
@@ -132,7 +133,7 @@ console.log(r2.text); // remembers "Rynn" from the previous turn
 
 ### Generate Content
 
-Create a `ChatSession` via `newChat()` and call `generateContent` on it. It returns a `Response` object containing the generated text, images, videos, and media.
+Create a `ChatSession` via `newChat()` and call `generateContent` on it. It returns a `ModelOutput` object.
 
 ```js
 const { Gemini } = require('gemini-reverse');
@@ -144,19 +145,78 @@ const response = await chat.generateContent({ prompt: 'What is the capital of Fr
 console.log(response.text);
 ```
 
+### One-Shot Prompt
+
+For quick one-shot prompts without creating a `ChatSession`, use `client.ask()`:
+
+```js
+const { Gemini, Model } = require('gemini-reverse');
+
+const client = new Gemini({ secure_1psid: 'YOUR_COOKIE' });
+
+const response = await client.ask('What is 2 + 2?');
+console.log(response.text);
+
+// With options
+const response2 = await client.ask('Explain gravity.', {
+    model: Model.BASIC_FLASH,
+    temporary: true,
+});
+console.log(response2.text);
+```
+
+`ask()` accepts the same options as `newChat()` plus `files` and `extended_thinking`.
+
 ### Response Object
 
-Every `generateContent` call returns a `Response` object with the following properties:
+Every `generateContent` (and `ask`) call returns a `ModelOutput` object:
 
-| Property | Type | Description |
-|---|---|---|
-| `text` | `string` | The generated text response (HTML entities decoded) |
-| `thoughts` | `string \| null` | The model's internal reasoning (if available) |
-| `images` | `Array<WebImage \| GeneratedImage>` | Images in the response (both web and generated) |
-| `videos` | `Array<GeneratedVideo>` | Generated videos |
-| `media` | `Array<GeneratedMedia>` | Generated audio/music (MP3 + MP4) |
+```js
+{
+  // ── Identifiers ────────────────────────
+  cid:     'c_abc123',          // conversation ID
+  rid:     'r_def456',          // response ID
+  rcid:    'rc_xyz789',         // chosen candidate's rcid
 
-All media objects expose a `.save()` method for downloading files to disk. See the relevant sections below for details.
+  // ── Info ───────────────────────────────
+  model:   'gemini-3-flash',    // model used
+  gem:     null,                // gem ID if used
+  created: 1750123456789,       // timestamp
+
+  // ── Candidates ─────────────────────────
+  candidates: [
+    {
+      index:    0,
+      rcid:     'rc_xyz789',
+      text:     'Paris is the capital of France.',
+      thoughts: null,
+      images:   [],
+      videos:   [],
+      media:    [],
+      done:     true,
+    },
+  ],
+}
+```
+
+**Convenience getters** (non-enumerable — accessible but hidden from `JSON.stringify`):
+
+| Getter | Shortcut for |
+|---|---|
+| `.text` | `candidates[chosen].text` |
+| `.thoughts` | `candidates[chosen].thoughts` |
+| `.images` | `candidates[chosen].images` |
+| `.videos` | `candidates[chosen].videos` |
+| `.media` | `candidates[chosen].media` |
+
+**Methods:**
+
+| Method | Description |
+|---|---|
+| `saveAll({ path, verbose })` | Save all images/videos/media from the chosen candidate |
+| `toString()` | Returns `candidates[chosen].text` |
+
+All media objects within candidates expose a `.save()` method for downloading files to disk. See the relevant sections below for details.
 
 ### Generate Content with Files
 
@@ -275,27 +335,36 @@ console.log(res2.text); // still remembers within the same session
 
 ### Streaming Mode
 
-For longer responses, use `generateContentStream` to receive partial outputs as they are generated. The `text_delta` attribute contains only the **new characters** received since the last yield.
+For longer responses, use `generateContentStream` to receive partial `ModelOutput` chunks as they are generated. Each chunk contains `candidates` with `text_delta` and a `done` flag.
 
 ```js
 const chat = client.newChat();
-for await (const chunk of client._generateContentStream({ prompt: 'Tell me a long story.', chat })) {
-    process.stdout.write(chunk.candidates[0].text_delta || '');
+for await (const chunk of chat.generateContentStream({ prompt: 'Explain quantum entanglement.' })) {
+    process.stdout.write(chunk.text_delta);
+    if (chunk.done) console.log('\n[done]');
 }
-console.log();
 ```
 
-Or use the `ChatSession` streaming interface directly:
+Each stream chunk has the same shape as a regular response, but with delta fields:
 
 ```js
-const chat = client.newChat();
-for await (const delta of chat.generateContentStream({ prompt: 'Explain quantum entanglement.' })) {
-    process.stdout.write(delta);
+{
+  cid:   'c_abc123',
+  rid:   'r_def456',
+  model: 'gemini-3-flash',
+  done:  false,              // true on last chunk
+  candidates: [
+    {
+      index:          0,
+      text_delta:     'Par',
+      thoughts_delta: null,
+      done:           false,
+    },
+  ],
 }
-console.log();
 ```
 
-> `chat.generateContentStream` yields `text_delta` strings directly, while `client._generateContentStream` yields full `ModelOutput` objects.
+After the stream ends, access the full final output via `chat.lastOutput`.
 
 ### Extended Thinking
 
@@ -501,6 +570,15 @@ for (const image of response.images) {
 
 When asking Gemini to "send" images, it returns web images from the web. When asking to "generate" images, it returns AI-generated `GeneratedImage` objects. Both are combined in `response.images`.
 
+> When `alt` text is available, it is used as the default filename (sanitized). Otherwise falls back to `'generated_image'`.
+
+**Save all media at once:**
+
+```js
+const saved = await response.saveAll({ path: './output', verbose: true });
+// { images: ['./output/...jpg'], videos: [...], media: [...] }
+```
+
 **Edit an existing image:**
 
 ```js
@@ -634,19 +712,20 @@ console.log(youtubeResponse.text);
 
 ### Check and Switch to Other Reply Candidates
 
-A Gemini response may contain multiple reply candidates. You can inspect all candidates and switch to a different one by updating `chat.rcid` before the next turn.
+A Gemini response may contain multiple reply candidates. Use `chooseCandidate(index)` to switch to a different one before the next turn.
 
 ```js
 const chat = client.newChat();
 const response = await chat.generateContent({ prompt: 'Recommend a sci-fi book.' });
 
-if (chat.lastOutput && chat.lastOutput.candidates.length > 1) {
-    chat.lastOutput.candidates.forEach((c, i) => {
-        console.log(`[${i}] ${c.text.slice(0, 80)}...`);
-    });
+// Access all candidates directly
+response.candidates.forEach((c, i) => {
+    console.log(`[${i}] ${c.text.slice(0, 80)}...`);
+});
 
-    // Switch to the second candidate
-    chat.rcid = chat.lastOutput.candidates[1].rcid;
+// Switch to the second candidate
+if (response.candidates.length > 1) {
+    chat.chooseCandidate(1);
 }
 
 const followup = await chat.generateContent({ prompt: 'Tell me more about it.' });
@@ -837,7 +916,6 @@ gemini-reverse/
 │   ├── chat.js             # ChatSession class
 │   ├── constants.js        # Endpoint, GRPC, Headers, Model, AccountStatus, ErrorCode
 │   ├── errors.js           # custom error classes
-│   ├── response.js         # Response (simplified output for ChatSession)
 │   ├── types/
 │   │   ├── model.js        # AvailableModel, RPCData
 │   │   ├── output.js       # ModelOutput, Candidate

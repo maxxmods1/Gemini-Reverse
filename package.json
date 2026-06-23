@@ -1,6 +1,6 @@
 {
   "name": "gemini-reverse",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Unofficial Node.js client for gemini.google.com — inspired by Gemini-API (Python). Supports streaming, chat sessions, gems, file uploads, and TypeScript.",
   "main": "index.js",
   "types": "index.d.ts",
@@ -30,7 +30,6 @@
   "dependencies": {
     "axios": "^1.13.6",
     "form-data": "^4.0.5",
-    "puppeteer-core": "^25.2.0",
     "uuid": "^13.0.0"
   }
 }
