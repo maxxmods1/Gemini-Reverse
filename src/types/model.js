@@ -60,7 +60,7 @@ class AvailableModel {
     static buildModelIdNameMapping() {
         const result = {};
         const keys = [
-            'BASIC_PRO', 'BASIC_FLASH', 'BASIC_LITE',
+            'BASIC_PRO', 'BASIC_FLASH', 'BASIC_LITE', 'BASIC_THINKING',
             'PLUS_PRO', 'PLUS_FLASH', 'PLUS_LITE',
             'ADVANCED_PRO', 'ADVANCED_FLASH', 'ADVANCED_LITE',
         ];
@@ -88,7 +88,7 @@ class AvailableModel {
     static buildModelIdNumberMapping() {
         const result = {};
         const keys = [
-            'BASIC_PRO', 'BASIC_FLASH', 'BASIC_LITE',
+            'BASIC_PRO', 'BASIC_FLASH', 'BASIC_LITE', 'BASIC_THINKING',
             'PLUS_PRO', 'PLUS_FLASH', 'PLUS_LITE',
             'ADVANCED_PRO', 'ADVANCED_FLASH', 'ADVANCED_LITE',
         ];
