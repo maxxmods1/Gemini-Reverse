@@ -85,7 +85,7 @@ class Gemini {
 
         this._ready = false;
         this._authed = false;
-        this._anonymous = !cookiePsid && !this.cookies['__Secure-1PSID'];
+        this._guest = !cookiePsid && !this.cookies['__Secure-1PSID'];
         this.accessToken = null;
         this.buildLabel = null;
         this.sessionId = null;
@@ -118,11 +118,11 @@ class Gemini {
         this._initPromise = (async () => {
             this._ready = true;
             try {
-                if (this._anonymous) {
-                    await this._getAnonymousCookie();
+                if (this._guest) {
+                    await this._getGuestCookie();
                     this._modelRegistry['fbb127bbb056c959'] = new AvailableModel({
                         model_id: 'fbb127bbb056c959', model_name: 'gemini-3-flash',
-                        display_name: 'Flash', description: 'Anonymous mode',
+                        display_name: 'Flash', description: 'Guest mode',
                         capacity: 1, capacity_field: 12, model_number: 1, is_available: true,
                     });
                     this.accountStatus = AccountStatus.UNAUTHENTICATED;
@@ -201,14 +201,14 @@ class Gemini {
     }
 
     async chats() {
-        if (this._anonymous) return [];
+        if (this._guest) return [];
         await this._ensureResources();
         if (!this._recentChats) return [];
         return this._recentChats;
     }
 
     async readChat(cid, limit = 10) {
-        if (this._anonymous) throw new APIError('Chat history not available in anonymous mode.');
+        if (this._guest) throw new APIError('Chat history not available in guest mode.');
         await this._ensure();
         const response = await this._batchExecute([
             new RPCData({ rpcid: GRPC.READ_CHAT, payload: JSON.stringify([cid, limit, null, 1, [1], [4], null, 1]) }),
@@ -241,14 +241,14 @@ class Gemini {
     }
 
     async deleteChat(cid) {
-        if (this._anonymous) throw new APIError('Chat management not available in anonymous mode.');
+        if (this._guest) throw new APIError('Chat management not available in guest mode.');
         await this._ensure();
         await this._batchExecute([new RPCData({ rpcid: GRPC.DELETE_CHAT_1, payload: JSON.stringify([cid]) })]);
         await this._batchExecute([new RPCData({ rpcid: GRPC.DELETE_CHAT_2, payload: JSON.stringify([cid, [1, null, 0, 1]]) })]);
     }
 
     async gems() {
-        if (this._anonymous) throw new APIError('Gems not available in anonymous mode.');
+        if (this._guest) throw new APIError('Gems not available in guest mode.');
         await this._ensure();
         const language = this.language || 'en';
         const response = await this._batchExecute([
@@ -278,7 +278,7 @@ class Gemini {
     }
 
     async addGem({ name, prompt, description = '' } = {}) {
-        if (this._anonymous) throw new APIError('Gems not available in anonymous mode.');
+        if (this._guest) throw new APIError('Gems not available in guest mode.');
         await this._ensure();
         if (!name || !prompt) throw new Error('Name and prompt required.');
         const response = await this._batchExecute([
@@ -295,7 +295,7 @@ class Gemini {
     }
 
     async setGem({ gem, name, prompt, description = '' } = {}) {
-        if (this._anonymous) throw new APIError('Gems not available in anonymous mode.');
+        if (this._guest) throw new APIError('Gems not available in guest mode.');
         await this._ensure();
         const id = typeof gem === 'object' ? gem.id : gem;
         if (!id) throw new Error('Gem ID required.');
@@ -306,7 +306,7 @@ class Gemini {
     }
 
     async delGem(gem) {
-        if (this._anonymous) throw new APIError('Gems not available in anonymous mode.');
+        if (this._guest) throw new APIError('Gems not available in guest mode.');
         await this._ensure();
         const id = typeof gem === 'object' ? gem.id : gem;
         if (!id) throw new Error('Gem ID required.');
@@ -320,7 +320,7 @@ class Gemini {
     }
 
     async research(prompt, { wait = true, pollInterval = 10000, timeout = 600000, onStatus = null } = {}) {
-        if (this._anonymous) throw new APIError('Deep research not available in anonymous mode.');
+        if (this._guest) throw new APIError('Deep research not available in guest mode.');
         const chat = this.newChat({ model: Model.UNSPECIFIED });
         const plan = await this._createDeepResearchPlan(prompt, chat);
         if (!plan) throw new GeminiError('Failed to create deep research plan.');
@@ -333,7 +333,7 @@ class Gemini {
 
     async account() {
         await this._ensure();
-        if (this._anonymous) {
+        if (this._guest) {
             const modelList = await this.models();
             return { status: { name: 'UNAUTHENTICATED' }, models: modelList.slice(0, 1), quotas: {}, abuse_clean: null };
         }
@@ -363,8 +363,8 @@ class Gemini {
 
     async _generateContent({ prompt, files = null, model = Model.UNSPECIFIED, gem = null, chat = null, temporary = false, deep_research = false, extended_thinking = false }) {
         await this._ensure();
-        if (this._anonymous && files) throw new APIError('File upload not available in anonymous mode.');
-        if (this._anonymous && deep_research) throw new APIError('Deep research not available in anonymous mode.');
+        if (this._guest && files) throw new APIError('File upload not available in guest mode.');
+        if (this._guest && deep_research) throw new APIError('Deep research not available in guest mode.');
         let fileData = null;
         if (files && files.length) {
             await this._syncActivity();
@@ -381,8 +381,8 @@ class Gemini {
 
     async *_generateContentStream({ prompt, files = null, model = Model.UNSPECIFIED, gem = null, chat = null, temporary = false, deep_research = false, extended_thinking = false }) {
         await this._ensure();
-        if (this._anonymous && files) throw new APIError('File upload not available in anonymous mode.');
-        if (this._anonymous && deep_research) throw new APIError('Deep research not available in anonymous mode.');
+        if (this._guest && files) throw new APIError('File upload not available in guest mode.');
+        if (this._guest && deep_research) throw new APIError('Deep research not available in guest mode.');
         let fileData = null;
         if (files && files.length) {
             await this._syncActivity();
@@ -400,8 +400,8 @@ class Gemini {
 
     async *_generate({ prompt, fileData = null, model = Model.UNSPECIFIED, gem = null, chat = null, temporary = false, ss = null, deep_research = false, extended_thinking = false }, retries = 5) {
         if (!prompt) throw new Error('Prompt cannot be empty.');
-        if (this._anonymous) {
-            for await (const out of this._streamAnonymous({ prompt, chat, ss })) yield out;
+        if (this._guest) {
+            for await (const out of this._streamGuest({ prompt, chat, ss })) yield out;
             return;
         }
         model = this._resolveModel(model);
@@ -665,7 +665,7 @@ class Gemini {
         for (const o of yielded) { hasGeneratedText = true; yield o; }
     }
 
-    async _getAnonymousCookie() {
+    async _getGuestCookie() {
         const res = await axios.post(Endpoint.BATCH_EXEC + '?rpcids=maGuAc&source-path=%2F&hl=en-US&_reqid=1&rt=c',
             'f.req=%5B%5B%5B%22maGuAc%22%2C%22%5B0%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&',
             { headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' } }
@@ -681,7 +681,7 @@ class Gemini {
         this._reqid = Math.floor(Math.random() * 90000) + 10000;
     }
 
-    async *_streamAnonymous({ prompt, chat = null, ss = null }) {
+    async *_streamGuest({ prompt, chat = null, ss = null }) {
         const _reqid = this._reqid;
         this._reqid += 100000;
 
@@ -736,8 +736,8 @@ class Gemini {
             if (ec) {
                 if (ec === ErrorCode.USAGE_LIMIT_EXCEEDED) throw new UsageLimitExceeded('Usage limit exceeded.');
                 if (ec === ErrorCode.IP_TEMPORARILY_BLOCKED) throw new TemporarilyBlocked('IP temporarily blocked.');
-                if (ec === 1096 || ec === 1097) throw new APIError('Session continuation not available in anonymous mode. Use authenticated mode for multi-turn chat.');
-                throw new APIError(`Anonymous API error code: ${ec}.`);
+                if (ec === 1096 || ec === 1097) throw new APIError('Session continuation not available in guest mode. Use authenticated mode for multi-turn chat.');
+                throw new APIError(`Guest API error code: ${ec}.`);
             }
 
             const innerStr = getNestedValue(part, [2]);

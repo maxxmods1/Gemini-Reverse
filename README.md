@@ -6,7 +6,7 @@ An unofficial Node.js client for [Google Gemini](https://gemini.google.com), ins
 
 ## Features
 
-- **Anonymous Mode** — Works without any Google account or cookies. Supports multi-turn chat sessions in anonymous mode.
+- **Guest Mode** — Works without any Google account or cookies. Supports multi-turn chat sessions in guest mode.
 - **Persistent Cookies** — Automatically refreshes cookies in the background with jitter to prevent synchronized requests. Optimized for always-on services.
 - **Image Generation** — Natively supports generating and editing images with natural language. Supports full-size image fetching.
 - **Video Generation** — Generates short videos from text prompts. Automatically polls until the video is ready and returns an authenticated download URL.
@@ -27,7 +27,7 @@ An unofficial Node.js client for [Google Gemini](https://gemini.google.com), ins
 - [Authentication](#authentication)
 - [Usage](#usage)
   - [Initialization](#initialization)
-  - [Anonymous Mode](#anonymous-mode)
+  - [Guest Mode](#guest-mode)
   - [Generate Content](#generate-content)
   - [One-Shot Prompt](#one-shot-prompt)
   - [Response Object](#response-object)
@@ -73,7 +73,7 @@ npm install gemini-reverse
 
 > `__Secure-1PSIDTS` is optional — the client will attempt to refresh and cache it automatically after the first successful initialization.
 
-> If you don't have a Google account or want to test without authentication, see [Anonymous Mode](#anonymous-mode).
+> If you don't have a Google account or want to test without authentication, see [Guest Mode](#guest-mode).
 
 Alternatively, you can export all cookies from your browser as a JSON file (Netscape/extension format) and pass the path or parsed array directly:
 
@@ -111,9 +111,9 @@ await client.init(); // optional — called automatically on first use
 
 > `autoClose` with a reasonable `closeDelay` is recommended for always-on services (e.g. chatbots) for better resource management.
 
-### Anonymous Mode
+### Guest Mode
 
-Anonymous mode allows you to use Gemini without any Google account or cookies. Multi-turn chat sessions are fully supported in this mode.
+Guest mode allows you to use Gemini without any Google account or cookies. Multi-turn chat sessions are fully supported in this mode.
 
 ```js
 const { Gemini } = require('gemini-reverse');
@@ -129,7 +129,7 @@ const r2 = await chat.generateContent({ prompt: 'What is my name?' });
 console.log(r2.text); // remembers "Rynn" from the previous turn
 ```
 
-> Anonymous mode is limited to the Gemini Flash model. Features like file uploads, deep research, gems, image/video generation, and chat history management require authentication.
+> Guest mode is limited to the Gemini Flash model. Features like file uploads, deep research, gems, image/video generation, and chat history management require authentication.
 
 ### Generate Content
 
@@ -222,7 +222,7 @@ All media objects within candidates expose a `.save()` method for downloading fi
 
 Gemini supports file input, including images and documents. Pass an array of file paths alongside your text prompt.
 
-> File upload is not available in anonymous mode.
+> File upload is not available in guest mode.
 
 ```js
 const chat = client.newChat();
@@ -278,7 +278,7 @@ The `metadata` array contains `[cid, rid, rcid, ...]` which uniquely identifies 
 
 Fetch the full conversation history of a chat by its `cid`. Returns an array of turn objects with `role` (`'user'` or `'model'`) and `text`.
 
-> Not available in anonymous mode.
+> Not available in guest mode.
 
 ```js
 const chat = client.newChat();
@@ -296,7 +296,7 @@ Each turn also exposes `images`, `videos`, and `media` arrays — useful for rea
 
 Use `chats()` to get a cached list of recent chat sessions fetched at initialization.
 
-> Not available in anonymous mode (returns an empty array).
+> Not available in guest mode (returns an empty array).
 
 ```js
 const chatList = await client.chats();
@@ -309,7 +309,7 @@ for (const info of chatList) {
 
 Delete a specific chat from Gemini's server-side history.
 
-> Not available in anonymous mode.
+> Not available in guest mode.
 
 ```js
 const chat = client.newChat();
@@ -442,7 +442,7 @@ for (const model of modelList) {
 
 System prompts can be applied via [Gemini Gems](https://gemini.google.com/gems/view). Pass the `gem` argument to `newChat()` — it can be a gem object or a gem ID string.
 
-> Not available in anonymous mode.
+> Not available in guest mode.
 
 ```js
 const gemList = await client.gems();
@@ -457,7 +457,7 @@ console.log(response.text);
 
 You can create, update, and delete custom gems programmatically. Predefined system gems cannot be modified.
 
-> Not available in anonymous mode.
+> Not available in guest mode.
 
 #### Create a Custom Gem
 
