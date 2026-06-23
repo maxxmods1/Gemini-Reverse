@@ -16,6 +16,8 @@ const { WebImage, GeneratedImage, GeneratedVideo, GeneratedMedia } = require('./
 const { DeepResearchPlan, DeepResearchStatus, DeepResearchResult } = require('./types/research');
 const { ChatTurn, ChatHistory, ChatInfo } = require('./types/chat');
 const { Gem, GemJar } = require('./types/gem');
+const fs = require('fs');
+const path = require('path');
 const { getAccessToken, cookieStr, parseCookies, parseProxy, rotate1psidts } = require('./utils/auth');
 const { uploadFile, parseFileName } = require('./utils/upload');
 const { getDeltaByFpLen, getNestedValue, extractJsonFromResponse, StreamingFrameParser } = require('./utils/parser');
@@ -25,6 +27,35 @@ const { ChatSession } = require('./chat');
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 const BARD_SETTINGS_PAYLOAD = '[[["adaptive_device_responses_enabled","advanced_mode_theme_override_triggered","advanced_zs_upsell_dismissal_count","advanced_zs_upsell_last_dismissed","ai_transparency_notice_dismissed","audio_overview_discovery_dismissal_count","audio_overview_discovery_last_dismissed","bard_in_chrome_link_sharing_enabled","bard_sticky_mode_disabled_count","canvas_create_discovery_tooltip_seen_count","combined_files_button_tag_seen_count","indigo_banner_explicit_dismissal_count","indigo_banner_impression_count","indigo_banner_last_seen_sec","current_popup_id","deep_research_has_seen_file_upload_tooltip","deep_research_model_update_disclaimer_display_count","default_bot_id","disabled_discovery_card_feature_ids","disabled_model_discovery_tooltip_feature_ids","disabled_mode_disclaimers","disabled_new_model_badge_mode_ids","disabled_settings_discovery_tooltip_feature_ids","disablement_disclaimer_last_dismissed_sec","disable_advanced_beta_dialog","disable_advanced_beta_non_en_banner","disable_advanced_resubscribe_ui","disable_at_mentions_discovery_tooltip","disable_autorun_fact_check_u18","disable_bot_create_tips_card","disable_bot_docs_in_gems_disclaimer","disable_bot_onboarding_dialog","disable_bot_save_reminder_tips_card","disable_bot_send_prompt_tips_card","disable_bot_shared_in_drive_disclaimer","disable_bot_try_create_tips_card","disable_colab_tooltip","disable_collapsed_tool_menu_tooltip","disable_continue_discovery_tooltip","disable_debug_info_moved_tooltip_v2","disable_enterprise_mode_dialog","disable_export_python_tooltip","disable_extensions_discovery_dialog","disable_extension_one_time_badge","disable_fact_check_tooltip_v2","disable_free_file_upload_tips_card","disable_generated_image_download_dialog","disable_get_app_banner","disable_get_app_desktop_dialog","disable_googler_in_enterprise_mode","disable_human_review_disclosure","disable_ice_open_vega_editor_tooltip","disable_image_upload_tooltip","disable_legal_concern_tooltip","disable_llm_history_import_disclaimer","disable_location_popup","disable_memory_discovery","disable_memory_extraction_discovery","disable_new_conversation_dialog","disable_onboarding_experience","disable_personal_context_tooltip","disable_photos_upload_disclaimer","disable_power_up_intro_tooltip","disable_scheduled_actions_mobile_notification_snackbar","disable_storybook_listen_button_tooltip","disable_streaming_settings_tooltip","disable_take_control_disclaimer","disable_teens_only_english_language_dialog","disable_tier1_rebranding_tooltip","disable_try_advanced_mode_dialog","enable_advanced_beta_mode","enable_advanced_mode","enable_googler_in_enterprise_mode","enable_memory","enable_memory_extraction","enable_personal_context","enable_personal_context_gemini","enable_personal_context_gemini_using_photos","enable_personal_context_gemini_using_workspace","enable_personal_context_search","enable_personal_context_youtube","enable_token_streaming","enforce_default_to_fast_version","mayo_discovery_banner_dismissal_count","mayo_discovery_banner_last_dismissed_sec","gempix_discovery_banner_dismissal_count","gempix_discovery_banner_last_dismissed","get_app_banner_ack_count","get_app_banner_seen_count","get_app_mobile_dialog_ack_count","guided_learning_banner_dismissal_count","guided_learning_banner_last_dismissed","has_accepted_agent_mode_fre_disclaimer","has_received_streaming_response","has_seen_agent_mode_tooltip","has_seen_bespoke_tooltip","has_seen_deepthink_mustard_tooltip","has_seen_deepthink_v2_tooltip","has_seen_deep_think_tooltip","has_seen_first_youtube_video_disclaimer","has_seen_ggo_tooltip","has_seen_image_grams_discovery_banner","has_seen_image_preview_in_input_area_tooltip","has_seen_kallo_discovery_banner","has_seen_kallo_tooltip","has_seen_model_picker_in_input_area_tooltip","has_seen_model_tooltip_in_input_area_for_gempix","has_seen_redo_with_gempix2_tooltip","has_seen_veograms_discovery_banner","has_seen_video_generation_discovery_banner","is_imported_chats_panel_open_by_default","jumpstart_onboarding_dismissal_count","last_dismissed_deep_research_implicit_invite","last_dismissed_discovery_feature_implicit_invites","last_dismissed_immersives_canvas_implicit_invite","last_dismissed_immersive_share_disclaimer_sec","last_dismissed_strike_timestamp_sec","last_dismissed_zs_student_aip_banner_sec","last_get_app_banner_ack_timestamp_sec","last_get_app_mobile_dialog_ack_timestamp_sec","last_human_review_disclosure_ack","last_selected_mode_id_in_embedded","last_selected_mode_id_on_web","last_two_up_activation_timestamp_sec","last_winter_olympics_interaction_timestamp_sec","memory_extracted_greeting_name","mini_gemini_tos_closed","mode_switcher_soft_badge_disabled_ids","mode_switcher_soft_badge_seen_count","personalization_first_party_onboarding_cross_surface_clicked","personalization_first_party_onboarding_cross_surface_seen_count","personalization_one_p_discovery_card_seen_count","personalization_one_p_discovery_last_consented","personalization_zero_state_card_last_interacted","personalization_zero_state_card_seen_count","popup_zs_visits_cooldown","require_reconsent_setting_for_personalization_banner_seen_count","show_debug_info","side_nav_open_by_default","student_verification_dismissal_count","student_verification_last_dismissed","task_viewer_cc_banner_dismissed_count","task_viewer_cc_banner_dismissed_time_sec","tool_menu_new_badge_disabled_ids","tool_menu_new_badge_impression_counts","tool_menu_soft_badge_disabled_ids","tool_menu_soft_badge_impression_counts","upload_disclaimer_last_consent_time_sec","viewed_student_aip_upsell_campaign_ids","voice_language","voice_name","web_and_app_activity_enabled","wellbeing_nudge_notice_last_dismissed_sec","zs_student_aip_banner_dismissal_count"]]]';
+
+function normalizeCookies(cookies) {
+    if (!cookies) return {};
+    if (typeof cookies === 'string') {
+        const resolved = path.resolve(cookies);
+        let raw;
+        try {
+            raw = fs.readFileSync(resolved, 'utf8');
+        } catch (e) {
+            throw new Error(`cookies: cannot read file "${cookies}": ${e.message}`);
+        }
+        try {
+            cookies = JSON.parse(raw);
+        } catch (e) {
+            throw new Error(`cookies: invalid JSON in "${cookies}": ${e.message}`);
+        }
+    }
+    if (Array.isArray(cookies)) {
+        const out = {};
+        for (const c of cookies) {
+            if (c && typeof c.name === 'string' && c.value !== undefined) {
+                out[c.name] = String(c.value);
+            }
+        }
+        return out;
+    }
+    if (typeof cookies === 'object') return { ...cookies };
+    return {};
+}
 
 class Gemini {
     constructor({
@@ -40,7 +71,7 @@ class Gemini {
         verbose = false,
         watchdogTimeout = 30000,
     } = {}) {
-        this.cookies = { ...cookies };
+        this.cookies = normalizeCookies(cookies);
         this.proxy = proxy;
         this.verbose = verbose;
         this.timeout = timeout;
@@ -54,7 +85,7 @@ class Gemini {
 
         this._ready = false;
         this._authed = false;
-        this._anonymous = !cookiePsid;
+        this._anonymous = !cookiePsid && !this.cookies['__Secure-1PSID'];
         this.accessToken = null;
         this.buildLabel = null;
         this.sessionId = null;
@@ -309,8 +340,9 @@ class Gemini {
         await this._ensureResources();
         const models = await this.models();
         return {
-            status: { code: this.accountStatus?.code, name: this.accountStatus?.name },
-            models: models.map(m => ({ id: m.model_id, name: m.model_name, display: m.display_name, available: m.is_available })),
+            status: { code: this.accountStatus?.value, name: this.accountStatus?.name },
+            models: models.map(m => ({ id: m.model_id, name: m.model_name, display_name: m.display_name, available: m.is_available })),
+            usage: { ...this._usageInfo },
             quotas: { ...this._quotas },
             abuse_clean: this._abuseStatus?.is_clean ?? null,
         };
@@ -458,6 +490,7 @@ class Gemini {
         let isCompleted = false, isFinalChunk = false;
         let cid = chat ? chat.cid : '';
         let rid = chat ? chat.rid : '';
+        let videoChipUUID = null;
         const frameParser = new StreamingFrameParser();
 
         const processParts = (parts) => {
@@ -471,6 +504,7 @@ class Gemini {
                         case ErrorCode.MODEL_HEADER_INVALID: throw new ModelInvalid(`Model unavailable or request structure outdated.`);
                         case ErrorCode.IP_TEMPORARILY_BLOCKED: throw new TemporarilyBlocked('IP temporarily blocked by Google.');
                         case ErrorCode.TEMPORARY_ERROR_1013: throw new APIError('Temporary error (1013).');
+                        case ErrorCode.FEATURE_NOT_AVAILABLE: throw new UsageLimitExceeded('This feature (e.g. video/media generation) is not available for your account plan.');
                         default: throw new APIError(`Unknown API error: ${ec}`);
                     }
                 }
@@ -509,6 +543,11 @@ class Gemini {
                     if (chat) chat.rcid = rcid;
 
                     const [text, thoughts, webImgs, genImgs, genVideos, genMedia] = this._parseCandidate(cd, cid, rid, rcid);
+
+                    if (!videoChipUUID) {
+                        const entry65 = getNestedValue(cd, [12, 0, '65']);
+                        if (Array.isArray(entry65) && entry65.length >= 2) videoChipUUID = entry65[1];
+                    }
 
                     let drPlan = null;
                     if (deep_research) {
@@ -567,7 +606,8 @@ class Gemini {
                 try {
                     const remaining = frameParser.flush();
                     for (const o of processParts(remaining)) yielded.push(o);
-                    if (!isCompleted && !isFinalChunk) reject(new APIError('Stream interrupted or truncated.'));
+                    const hasMediaOrVideo = yielded.some(o => o.videos?.length > 0 || o.media?.length > 0);
+                    if (!isCompleted && !isFinalChunk && !hasMediaOrVideo) reject(new APIError('Stream interrupted or truncated.'));
                     else resolve();
                 } catch (e) { reject(e); }
             });
@@ -577,7 +617,7 @@ class Gemini {
 
         hasGeneratedText = yielded.length > 0;
 
-        if (!isCompleted && !isFinalChunk && cid) {
+        if ((!isCompleted || isThinking || isQueueing) && cid && isFinalChunk) {
             const pollStart = Date.now();
             while (true) {
                 if ((Date.now() - pollStart) > this.timeout) {
@@ -588,7 +628,7 @@ class Gemini {
                 const recovered = await this._readChatInternal(cid);
                 if (recovered?.turns?.length > 0 && recovered.turns[0].role === 'model') {
                     const recoveredOut = recovered.turns[0].model_output;
-                    if (recoveredOut?.candidates && (recoveredOut.text || recoveredOut.thoughts)) {
+                    if (recoveredOut?.candidates && (recoveredOut.text || recoveredOut.thoughts || recoveredOut.images?.length || recoveredOut.videos?.length || recoveredOut.media?.length)) {
                         const recRcid = recoveredOut.rcid;
                         const prevRcid = chatBackup ? chatBackup.rcid : '';
                         if (recRcid !== prevRcid) {
@@ -597,6 +637,21 @@ class Gemini {
                             return;
                         }
                     }
+                }
+                await sleep(sleepTime);
+            }
+        }
+
+        if (videoChipUUID && !yielded.some(o => o.videos?.length) && cid) {
+            const pollStart = Date.now();
+            while ((Date.now() - pollStart) < this.timeout) {
+                await this._syncActivity();
+                const recovered = await this._readChatInternal(cid);
+                const recoveredOut = recovered?.turns?.find(t => t.role === 'model')?.model_output;
+                if (recoveredOut?.videos?.length > 0) {
+                    if (chat) { recoveredOut.metadata = chat.metadata; chat.rcid = recoveredOut.rcid; }
+                    yield recoveredOut;
+                    return;
                 }
                 await sleep(sleepTime);
             }
@@ -741,7 +796,7 @@ class Gemini {
         const webImages = [];
         for (const [imgIdx, wi] of (getNestedValue(candidateData, [12, 1], []) || []).entries()) {
             const url = getNestedValue(wi, [0, 0, 0]);
-            if (url) webImages.push(new WebImage({ url, title: `[Image ${imgIdx + 1}]`, alt: getNestedValue(wi, [0, 4], ''), proxy: this.proxy }));
+            if (url) webImages.push(new WebImage({ url, title: `[Image ${imgIdx + 1}]`, alt: getNestedValue(wi, [0, 4], ''), proxy: this.proxy, client_ref: this }));
         }
 
         const generatedImages = [];
@@ -759,12 +814,10 @@ class Gemini {
         }
 
         const generatedVideos = [];
-        const videoInfo = getNestedValue(candidateData, [12, 59, 0, 0, 0], []);
-        if (videoInfo) {
-            const urls = getNestedValue(videoInfo, [0, 7], []);
-            if (Array.isArray(urls) && urls.length >= 2) {
+        for (const vItem of (getNestedValue(candidateData, [12, 0, '60', 0, 0, 0]) || [])) {
+            const urls = getNestedValue(vItem, [7], []);
+            if (Array.isArray(urls) && urls.length >= 2)
                 generatedVideos.push(new GeneratedVideo({ url: urls[1], thumbnail: urls[0], cid, rid, rcid, client_ref: this, proxy: this.proxy }));
-            }
         }
 
         const generatedMedia = [];
@@ -999,7 +1052,8 @@ class Gemini {
                 const statusCode = getNestedValue(partBody, [14]);
                 this.accountStatus = AccountStatus.fromStatusCode(statusCode);
 
-                if (this.accountStatus !== AccountStatus.AVAILABLE) {
+                const isUnauthenticated = this.accountStatus === AccountStatus.UNAUTHENTICATED;
+                if (this.accountStatus !== AccountStatus.AVAILABLE && !isUnauthenticated) {
                     console.warn(`Account status: ${this.accountStatus.name} - ${this.accountStatus.description}`);
                     if ([
                         AccountStatus.LOCATION_REJECTED,
@@ -1019,21 +1073,19 @@ class Gemini {
                 const idNameMapping = AvailableModel.buildModelIdNameMapping();
                 const idNumberMapping = AvailableModel.buildModelIdNumberMapping();
 
+                if (isUnauthenticated) this.accountStatus = AccountStatus.AVAILABLE;
+
                 for (const modelData of modelsList) {
                     if (!Array.isArray(modelData)) continue;
                     const modelId = getNestedValue(modelData, [0], '');
                     const displayName = getNestedValue(modelData, [1], '');
                     const description = getNestedValue(modelData, [2], '');
                     if (modelId && displayName) {
-                        let isModelAvailable = true;
-                        if (this.accountStatus === AccountStatus.UNAUTHENTICATED) {
-                            if (modelId !== Model.modelId(Model.BASIC_FLASH)) isModelAvailable = false;
-                        }
                         this._modelRegistry[modelId] = new AvailableModel({
                             model_id: modelId, model_name: idNameMapping[modelId] || '',
                             display_name: displayName, description, capacity,
                             capacity_field: capacityField, model_number: idNumberMapping[modelId] || 1,
-                            is_available: isModelAvailable,
+                            is_available: true,
                         });
                     }
                 }
@@ -1125,18 +1177,36 @@ class Gemini {
         } catch {}
     }
 
+    _deriveTierFromRegistry() {
+        const tierLabels = { 1: 'FREE', 2: 'PRO', 3: 'ULTRA', 4: 'PLUS', 6: 'ULTRA' };
+        const models = Object.values(this._modelRegistry);
+        if (!models.length) return { id: null, label: null };
+        const hasUltra = models.some(m => m.capacity === 3);
+        const hasAdvanced = models.some(m => m.capacity === 2 && m.capacity_field === 12);
+        const hasPlus = models.some(m => m.capacity === 4);
+        const hasHelium = models.some(m => m.capacity_field === 13);
+        let tierId = 1;
+        if (hasUltra) tierId = 3;
+        else if (hasAdvanced) tierId = 2;
+        else if (hasPlus) tierId = 4;
+        else if (hasHelium) tierId = 2;
+        return { id: tierId, label: tierLabels[tierId] || null };
+    }
+
     async _fetchUsageInfo() {
         if (!this._checkAccountStatus()) return;
         const tierLabels = { 1: 'FREE', 2: 'PRO', 3: 'ULTRA', 4: 'PLUS', 6: 'ULTRA' };
         const metricWindows = { 1: ['current_5h', '5h'], 2: ['weekly', 'weekly'] };
         try {
-            const res = await this._batchExecute([new RPCData({ rpcid: GRPC.GET_USAGE_INFO, payload: '[]' })], 2, true, '/usage');
+            const res = await this._batchExecute([new RPCData({ rpcid: GRPC.GET_USAGE_INFO, payload: '[]' })], 2, false, '/usage');
             const parts = extractJsonFromResponse(res.data);
             for (const part of parts) {
                 const bodyStr = getNestedValue(part, [2]);
-                if (!bodyStr) continue;
+                if (typeof bodyStr !== 'string') continue;
                 let body; try { body = JSON.parse(bodyStr); } catch { continue; }
+                if (!Array.isArray(body)) continue;
                 const tierId = getNestedValue(body, [0]);
+                if (tierId === null || tierId === undefined) continue;
                 const usageItems = getNestedValue(body, [1], []);
                 const useOverage = getNestedValue(body, [2]);
                 const info = {
@@ -1161,8 +1231,14 @@ class Gemini {
                 }
                 this._usageInfo = info;
                 this._quotas.usage_info = info;
+                return;
             }
         } catch {}
+        if (!this._usageInfo.tier || this._usageInfo.tier.id === null) {
+            const tier = this._deriveTierFromRegistry();
+            this._usageInfo = { tier, use_overage_ai_credits: null, current_5h: null, weekly: null };
+            this._quotas.usage_info = this._usageInfo;
+        }
     }
 
     async _fetchRecentChats(recent = 13) {

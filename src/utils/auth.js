@@ -50,8 +50,46 @@ async function sendInitRequest(cookies, proxy = null) {
     const fdrfje = (t.match(/"FdrFJe":\s*"(.*?)"/) || [])[1] || null;
     const language = (t.match(/"TuX5cc":\s*"(.*?)"/) || [])[1] || null;
     const pushId = (t.match(/"qKIAYe":\s*"(.*?)"/) || [])[1] || null;
-    if (!snlm0e && !cfb2h && !fdrfje && !language && !pushId) throw new AuthError('Cookies invalid.');
+    if (!cfb2h && !fdrfje && !language) throw new AuthError('Cookies invalid.');
     return [snlm0e, cfb2h, fdrfje, language, pushId, parseCookies(res.headers, cookies)];
+}
+
+async function rotate1psidts(cookies, proxy = null) {
+    const dir = cacheDir();
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const psid = cookies['__Secure-1PSID'];
+    if (!psid) return [null, null];
+
+    const cachePath = path.join(dir, `.cached_1psidts_${psid}.txt`);
+
+    if (fs.existsSync(cachePath) && Date.now() - fs.statSync(cachePath).mtimeMs <= 60000) {
+        return [fs.readFileSync(cachePath, 'utf8'), null];
+    }
+
+    const res = await axios.post(Endpoint.ROTATE_COOKIES, '[0,"-0000000000000000000"]', {
+        headers: {
+            ...Headers.ROTATE_COOKIES,
+            'Origin': 'https://accounts.google.com',
+            'Referer': 'https://accounts.google.com/',
+            'Cookie': cookieStr(cookies),
+        },
+        ...(proxy ? { proxy: parseProxy(proxy) } : {}),
+        validateStatus: null,
+    });
+
+    if (res.status === 401) throw new AuthError('Unauthorized while rotating cookies.');
+    if (res.status >= 400) throw new Error(`HTTP ${res.status} while rotating cookies.`);
+
+    const newCookies = parseCookies(res.headers);
+    const new1psidts = newCookies['__Secure-1PSIDTS'] || null;
+
+    if (new1psidts) {
+        fs.writeFileSync(cachePath, new1psidts, { mode: 0o600 });
+        return [new1psidts, newCookies];
+    }
+
+    return [null, newCookies];
 }
 
 async function getAccessToken(baseCookies, proxy = null, verbose = false) {
@@ -100,7 +138,42 @@ async function getAccessToken(baseCookies, proxy = null, verbose = false) {
         try {
             const result = await tasks[i];
             if (verbose) console.debug(`Init attempt (${i + 1}/${tasks.length}) succeeded.`);
-            return result;
+            let [snlm0e, cfb2h, fdrfje, language, pushId, validCookies] = result;
+            if (psid && !validCookies['__Secure-1PSIDTS']) {
+                let new1psidts = null;
+                try {
+                    const [rotated, rotatedCookies] = await rotate1psidts(validCookies, proxy);
+                    if (rotated) {
+                        new1psidts = rotated;
+                        if (rotatedCookies) Object.assign(validCookies, rotatedCookies);
+                    }
+                } catch (e) {
+                    if (verbose) console.debug(`rotate1psidts during init failed: ${e.message}`);
+                    const f = path.join(dir, `.cached_1psidts_${psid}.txt`);
+                    if (fs.existsSync(f)) {
+                        const stale = fs.readFileSync(f, 'utf8').trim();
+                        if (stale) {
+                            new1psidts = stale;
+                            if (verbose) console.debug('rotate1psidts failed — using stale cache as fallback');
+                        }
+                    }
+                }
+                if (new1psidts && !snlm0e) {
+                    validCookies['__Secure-1PSIDTS'] = new1psidts;
+                    try {
+                        const retried = await sendInitRequest(validCookies, proxy);
+                        if (retried[0]) {
+                            [snlm0e, cfb2h, fdrfje, language, pushId] = retried;
+                            Object.assign(validCookies, retried[5]);
+                        }
+                    } catch (e2) {
+                        if (verbose) console.debug(`retry init with PSIDTS failed: ${e2.message}`);
+                    }
+                } else if (new1psidts) {
+                    validCookies['__Secure-1PSIDTS'] = new1psidts;
+                }
+            }
+            return [snlm0e, cfb2h, fdrfje, language, pushId, validCookies];
         } catch (e) {
             lastErr = e;
             if (verbose) console.debug(`Init attempt (${i + 1}/${tasks.length}) failed: ${e.message}`);
@@ -108,39 +181,6 @@ async function getAccessToken(baseCookies, proxy = null, verbose = false) {
     }
 
     throw new AuthError(`Failed to initialize client. (Failed attempts: ${tasks.length})`);
-}
-
-async function rotate1psidts(cookies, proxy = null) {
-    const dir = cacheDir();
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-    const psid = cookies['__Secure-1PSID'];
-    if (!psid) return [null, null];
-
-    const cachePath = path.join(dir, `.cached_1psidts_${psid}.txt`);
-
-    if (fs.existsSync(cachePath) && Date.now() - fs.statSync(cachePath).mtimeMs <= 60000) {
-        return [fs.readFileSync(cachePath, 'utf8'), null];
-    }
-
-    const res = await axios.post(Endpoint.ROTATE_COOKIES, '[000,"-0000000000000000000"]', {
-        headers: { ...Headers.ROTATE_COOKIES, 'Cookie': cookieStr(cookies) },
-        ...(proxy ? { proxy: parseProxy(proxy) } : {}),
-        validateStatus: null,
-    });
-
-    if (res.status === 401) throw new AuthError('Unauthorized while rotating cookies.');
-    if (res.status >= 400) throw new Error(`HTTP ${res.status} while rotating cookies.`);
-
-    const newCookies = parseCookies(res.headers);
-    const new1psidts = newCookies['__Secure-1PSIDTS'] || null;
-
-    if (new1psidts) {
-        fs.writeFileSync(cachePath, new1psidts, { mode: 0o600 });
-        return [new1psidts, newCookies];
-    }
-
-    return [null, newCookies];
 }
 
 module.exports = { getAccessToken, sendInitRequest, cookieStr, parseCookies, parseProxy, cacheDir, rotate1psidts };

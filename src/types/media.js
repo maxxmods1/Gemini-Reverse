@@ -18,11 +18,12 @@ function parseProxy(proxyStr) {
 }
 
 class Image {
-    constructor({ url, title = '[Image]', alt = '', proxy = null } = {}) {
+    constructor({ url, title = '[Image]', alt = '', proxy = null, client_ref = null } = {}) {
         this.url = url;
         this.title = title;
         this.alt = alt;
         this.proxy = proxy;
+        this.client_ref = client_ref;
     }
 
     _getUrlForHash() { return this.url; }
@@ -82,7 +83,9 @@ class Image {
 }
 
 class WebImage extends Image {
-    constructor(opts) { super(opts); }
+    constructor({ url, title = '[Image]', alt = '', proxy = null, client_ref = null } = {}) {
+        super({ url, title, alt, proxy, client_ref });
+    }
 }
 
 class GeneratedImage extends Image {
@@ -138,10 +141,11 @@ class GeneratedImage extends Image {
 }
 
 class Video {
-    constructor({ url, title = '[Video]', proxy = null } = {}) {
+    constructor({ url, title = '[Video]', proxy = null, client_ref = null } = {}) {
         this.url = url;
         this.title = title;
         this.proxy = proxy;
+        this.client_ref = client_ref;
         this._defaultFilenameSuffix = 'video';
     }
 
@@ -167,13 +171,16 @@ class Video {
 
     async _downloadFile(url, savePath, filename, defaultExt = '.mp4', verbose = false) {
         const proxyConfig = this.proxy ? parseProxy(this.proxy) : undefined;
+        const cookies = this.client_ref?.cookies;
+        const cookieStr = cookies ? Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ') : '';
         const res = await axios.get(url, {
             responseType: 'arraybuffer',
             headers: {
                 'Origin': 'https://gemini.google.com',
                 'Referer': 'https://gemini.google.com/',
+                ...(cookieStr && { Cookie: cookieStr }),
             },
-            ...(proxyConfig ? { proxy: proxyConfig } : {}),
+            ...(proxyConfig && { proxy: proxyConfig }),
             validateStatus: null,
         });
 
@@ -203,12 +210,11 @@ class Video {
 
 class GeneratedVideo extends Video {
     constructor({ url, thumbnail = null, cid = '', rid = '', rcid = '', client_ref = null, proxy = null } = {}) {
-        super({ url, title: '[Generated Video]', proxy });
+        super({ url, title: '[Generated Video]', proxy, client_ref });
         this.thumbnail = thumbnail;
         this.cid = cid;
         this.rid = rid;
         this.rcid = rcid;
-        this.client_ref = client_ref;
         this._defaultFilenameSuffix = 'generated_video';
     }
 
