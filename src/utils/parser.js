@@ -222,4 +222,4 @@ function extractJsonFromResponse(text) {
     throw new Error('Could not find valid JSON in response.');
 }
 
-module.exports = { getCleanText, getDeltaByFpLen, getNestedValue, parseResponseByFrame, extractJsonFromResponse, StreamingFrameParser };
+module.exports = { getCleanText, getDeltaByFpLen, getNestedValue, extractJsonFromResponse, StreamingFrameParser };

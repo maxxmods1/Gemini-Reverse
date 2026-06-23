@@ -59,4 +59,4 @@ async function uploadFile(file, proxy = null, pushId = '', cookies = {}) {
     return res.data;
 }
 
-module.exports = { uploadFile, parseFileName, generateRandomName };
+module.exports = { uploadFile, parseFileName };

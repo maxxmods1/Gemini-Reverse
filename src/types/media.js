@@ -4,22 +4,13 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { parseProxy } = require('../utils/auth');
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function sanitizeFilename(str, maxLen = 50) {
     if (!str) return '';
     return str.replace(/[^a-zA-Z0-9\s_-]/g, '').replace(/\s+/g, '_').slice(0, maxLen).replace(/_+$/, '');
-}
-
-function parseProxy(proxyStr) {
-    if (!proxyStr) return undefined;
-    try {
-        const u = new URL(proxyStr);
-        return { protocol: u.protocol.replace(':', ''), host: u.hostname, port: parseInt(u.port) };
-    } catch {
-        return undefined;
-    }
 }
 
 class Image {

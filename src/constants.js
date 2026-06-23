@@ -21,7 +21,6 @@ const Endpoint = {
     GOOGLE: 'https://www.google.com',
     INIT: 'https://gemini.google.com/app',
     GENERATE: 'https://gemini.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate',
-    ROTATE_COOKIES: 'https://accounts.google.com/RotateCookies',
     UPLOAD: 'https://content-push.googleapis.com/upload',
     BATCH_EXEC: 'https://gemini.google.com/_/BardChatUi/data/batchexecute',
 };
@@ -29,56 +28,16 @@ const Endpoint = {
 const GRPC = {
     LIST_CHATS: 'MaZiqc',
     READ_CHAT: 'hNvQHb',
-    GET_CONVERSATION_TURN: 'EqPOKe',
     DELETE_CHAT_1: 'GzXR5e',
     DELETE_CHAT_2: 'qWymEb',
-    UPDATE_CONVERSATION: 'MUAZcd',
-    MARK_LAST_CONVERSATION_TURN: 'kOWVAe',
-    GENERATE_HEADLINE: 'ukz1Fe',
 
     LIST_GEMS: 'CNgdBe',
     CREATE_GEM: 'oMH3Zd',
-    GET_GEM: 'HcT8bb',
     UPDATE_GEM: 'kHv0Vd',
     DELETE_GEM: 'UXcSJb',
-    DELETE_GEM_AND_CONVERSATIONS: 'Nwkn9',
-
-    CREATE_TASK: 'Jba3ib',
-    GET_TASK: 'kwDCne',
-    GET_ALL_TASKS: 'XPSWpd',
-    GET_TASKS_IN_CONVERSATION: 'qWymEb',
-    GET_CANDIDATES: 'PCck7e',
-    LIST_DISCOVERY_CARDS: 'ku4Jyf',
-    GET_DISCOVERY_CARD: 'oApPWc',
-    LIST_DISCOVERY_BANNERS: 'Te6DCf',
 
     DEEP_RESEARCH_STATUS: 'kwDCne',
-    DEEP_RESEARCH_PREFS: 'L5adhe',
-    DEEP_RESEARCH_BOOTSTRAP: 'ku4Jyf',
-    DEEP_RESEARCH_MODEL_STATE: 'qpEbW',
-    DEEP_RESEARCH_CAPS: 'aPya6c',
-    DEEP_RESEARCH_ACK: 'PCck7e',
-
-    LIST_GEMINI_APP_ARTIFACTS: 'jGArJ',
-    DELETE_GEMINI_APP_ARTIFACTS: 'PGX16d',
-
-    LIST_MEMORIES: 'ZKcapf',
-    CREATE_MEMORY: 'xVRQX',
-    UPDATE_MEMORY: 'gSnMcd',
-    DELETE_MEMORY: 'Ok9j9b',
-    DELETE_ALL_MEMORIES: 'YgU2Cc',
-
-    GET_USER_STATUS: 'otAQ7b',
-    LIST_MODELS: 'otAQ7b',
-    CHECK_GEMINI_QUOTA: 'qpEbW',
-    CHECK_QUOTA: 'aPya6c',
     GET_FULL_SIZE_IMAGE: 'c8o8Fe',
-    GET_ABUSE_STATUS: 'GPRiHf',
-    UPDATE_USER_PREFERENCES: 'L5adhe',
-    READ_USER_PREFERENCES: 'ESY5D',
-    BARD_SETTINGS: 'ESY5D',
-    CONTINUE_SHARED_CONVERSATION: 'ra9Swb',
-    GET_USAGE_INFO: 'jSf9Qc',
 };
 
 const Headers = {
@@ -93,10 +52,6 @@ const Headers = {
         'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
         'Origin': 'https://gemini.google.com',
         'Referer': 'https://gemini.google.com/',
-    },
-    ROTATE_COOKIES: {
-        'Content-Type': 'application/json',
-        'Origin': 'https://accounts.google.com',
     },
     UPLOAD: { 'X-Tenant-Id': 'bard-storage' },
     BATCH_EXEC: {
@@ -189,47 +144,6 @@ const Model = {
         }
     },
 };
-
-class AccountStatus {
-    constructor(name, value, description) {
-        this.name = name;
-        this.value = value;
-        this.description = description;
-    }
-
-    static fromStatusCode(code) {
-        if (code == null || code === 1000) return AccountStatus.AVAILABLE;
-        for (const status of Object.values(AccountStatus._all)) {
-            if (status.value === code) return status;
-        }
-        return AccountStatus.ACCOUNT_REJECTED;
-    }
-}
-
-AccountStatus.AVAILABLE = new AccountStatus('AVAILABLE', 1000, 'Account is authorized and has normal access.');
-AccountStatus.ACCESS_TEMPORARILY_UNAVAILABLE = new AccountStatus('ACCESS_TEMPORARILY_UNAVAILABLE', 1014, 'Access is restricted, possibly due to regional or temporary session issues.');
-AccountStatus.UNAUTHENTICATED = new AccountStatus('UNAUTHENTICATED', 1016, 'Session is not authenticated or cookies have expired. Please check your cookies.');
-AccountStatus.ACCOUNT_REJECTED = new AccountStatus('ACCOUNT_REJECTED', 1021, 'Account access is rejected. Please check your Google Account settings.');
-AccountStatus.ACCOUNT_UNTRUSTED = new AccountStatus('ACCOUNT_UNTRUSTED', 1033, 'Account did not pass safety or trust checks for some features.');
-AccountStatus.TOS_PENDING = new AccountStatus('TOS_PENDING', 1040, 'You need to accept the latest Terms of Service to continue.');
-AccountStatus.TOS_OUT_OF_DATE = new AccountStatus('TOS_OUT_OF_DATE', 1042, 'Terms of Service are out of date; please accept the new ones.');
-AccountStatus.ACCOUNT_REJECTED_BY_GUARDIAN = new AccountStatus('ACCOUNT_REJECTED_BY_GUARDIAN', 1054, 'Access is blocked by a parent or guardian.');
-AccountStatus.GUARDIAN_APPROVAL_REQUIRED = new AccountStatus('GUARDIAN_APPROVAL_REQUIRED', 1057, 'Access requires parent or guardian approval.');
-AccountStatus.LOCATION_REJECTED = new AccountStatus('LOCATION_REJECTED', 1060, 'Gemini is not currently supported in your country/region.');
-
-AccountStatus._all = {
-    AVAILABLE: AccountStatus.AVAILABLE,
-    ACCESS_TEMPORARILY_UNAVAILABLE: AccountStatus.ACCESS_TEMPORARILY_UNAVAILABLE,
-    UNAUTHENTICATED: AccountStatus.UNAUTHENTICATED,
-    ACCOUNT_REJECTED: AccountStatus.ACCOUNT_REJECTED,
-    ACCOUNT_UNTRUSTED: AccountStatus.ACCOUNT_UNTRUSTED,
-    TOS_PENDING: AccountStatus.TOS_PENDING,
-    TOS_OUT_OF_DATE: AccountStatus.TOS_OUT_OF_DATE,
-    ACCOUNT_REJECTED_BY_GUARDIAN: AccountStatus.ACCOUNT_REJECTED_BY_GUARDIAN,
-    GUARDIAN_APPROVAL_REQUIRED: AccountStatus.GUARDIAN_APPROVAL_REQUIRED,
-    LOCATION_REJECTED: AccountStatus.LOCATION_REJECTED,
-};
-
 const ErrorCode = {
     TEMPORARY_ERROR_1013: 1013,
     USAGE_LIMIT_EXCEEDED: 1037,
@@ -252,6 +166,5 @@ module.exports = {
     GRPC,
     Headers,
     Model,
-    AccountStatus,
     ErrorCode,
 };

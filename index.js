@@ -2,8 +2,8 @@
 
 const { Gemini } = require('./src/gemini');
 const { ChatSession } = require('./src/chat');
-const { Model, AccountStatus, ErrorCode } = require('./src/constants');
-const { AuthError, APIError, ImageGenerationError, GeminiError, TimeoutError, UsageLimitExceeded, ModelInvalid, TemporarilyBlocked } = require('./src/errors');
+const { Model, ErrorCode } = require('./src/constants');
+const { AuthError, APIError, GeminiError, UsageLimitExceeded, ModelInvalid, TemporarilyBlocked } = require('./src/errors');
 const { AvailableModel } = require('./src/types/model');
 const { ModelOutput, Candidate } = require('./src/types/output');
 const { Gem, GemJar } = require('./src/types/gem');
@@ -15,13 +15,10 @@ module.exports = {
     Gemini,
     ChatSession,
     Model,
-    AccountStatus,
     ErrorCode,
     AuthError,
     APIError,
-    ImageGenerationError,
     GeminiError,
-    TimeoutError,
     UsageLimitExceeded,
     ModelInvalid,
     TemporarilyBlocked,

@@ -1,6 +1,6 @@
 'use strict';
 
-const { buildModelHeader, MODEL_HEADER_KEY, Model } = require('../constants');
+const { buildModelHeader } = require('../constants');
 
 class RPCData {
     constructor({ rpcid, payload, identifier = 'generic' } = {}) {
@@ -48,68 +48,6 @@ class AvailableModel {
         return this.model_name || this.display_name;
     }
 
-    static computeCapacity(tierFlags, capabilityFlags) {
-        if (tierFlags.includes(21)) return [1, 13];
-        if (tierFlags.includes(22)) return [2, 13];
-        if (capabilityFlags.includes(115)) return [4, 12];
-        if (tierFlags.includes(16) || capabilityFlags.includes(106)) return [3, 12];
-        if (tierFlags.includes(8) || (!capabilityFlags.includes(106) && capabilityFlags.includes(19))) return [2, 12];
-        return [1, 12];
-    }
-
-    static buildModelIdNameMapping() {
-        const result = {};
-        const keys = [
-            'BASIC_PRO', 'BASIC_FLASH', 'BASIC_LITE', 'BASIC_THINKING',
-            'PLUS_PRO', 'PLUS_FLASH', 'PLUS_LITE',
-            'ADVANCED_PRO', 'ADVANCED_FLASH', 'ADVANCED_LITE',
-        ];
-        for (const key of keys) {
-            const member = Model[key];
-            if (!member) continue;
-            const headerValue = member.model_header[MODEL_HEADER_KEY];
-            if (!headerValue) continue;
-            try {
-                const parsed = JSON.parse(headerValue);
-                const modelId = parsed && parsed[4];
-                if (modelId && !(modelId in result)) {
-                    const baseSuffix = key.split('_').slice(1).join('_');
-                    const baseKey = 'BASIC_' + baseSuffix;
-                    const baseMember = Model[baseKey] || member;
-                    result[modelId] = baseMember.model_name;
-                }
-            } catch {
-                continue;
-            }
-        }
-        return result;
-    }
-
-    static buildModelIdNumberMapping() {
-        const result = {};
-        const keys = [
-            'BASIC_PRO', 'BASIC_FLASH', 'BASIC_LITE', 'BASIC_THINKING',
-            'PLUS_PRO', 'PLUS_FLASH', 'PLUS_LITE',
-            'ADVANCED_PRO', 'ADVANCED_FLASH', 'ADVANCED_LITE',
-        ];
-        for (const key of keys) {
-            const member = Model[key];
-            if (!member) continue;
-            const headerValue = member.model_header[MODEL_HEADER_KEY];
-            if (!headerValue) continue;
-            try {
-                const parsed = JSON.parse(headerValue);
-                const modelId = parsed && parsed[4];
-                const modelNumber = parsed && parsed[parsed.length - 1];
-                if (modelId && typeof modelNumber === 'number' && !(modelId in result)) {
-                    result[modelId] = modelNumber;
-                }
-            } catch {
-                continue;
-            }
-        }
-        return result;
-    }
 }
 
 module.exports = { RPCData, AvailableModel };

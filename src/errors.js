@@ -8,16 +8,8 @@ class APIError extends Error {
     constructor(m) { super(m); this.name = 'APIError'; }
 }
 
-class ImageGenerationError extends APIError {
-    constructor(m) { super(m); this.name = 'ImageGenerationError'; }
-}
-
 class GeminiError extends Error {
     constructor(m) { super(m); this.name = 'GeminiError'; }
-}
-
-class TimeoutError extends GeminiError {
-    constructor(m) { super(m); this.name = 'TimeoutError'; }
 }
 
 class UsageLimitExceeded extends GeminiError {
@@ -32,4 +24,4 @@ class TemporarilyBlocked extends GeminiError {
     constructor(m) { super(m); this.name = 'TemporarilyBlocked'; }
 }
 
-module.exports = { AuthError, APIError, ImageGenerationError, GeminiError, TimeoutError, UsageLimitExceeded, ModelInvalid, TemporarilyBlocked };
+module.exports = { AuthError, APIError, GeminiError, UsageLimitExceeded, ModelInvalid, TemporarilyBlocked };

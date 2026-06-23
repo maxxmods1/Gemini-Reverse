@@ -7,7 +7,6 @@ An unofficial Node.js client for [Google Gemini](https://gemini.google.com), ins
 ## Features
 
 - **Guest Mode** — Works without any Google account or cookies. Supports multi-turn chat sessions in guest mode.
-- **Persistent Cookies** — Automatically refreshes cookies in the background with jitter to prevent synchronized requests. Optimized for always-on services.
 - **Image Generation** — Natively supports generating and editing images with natural language. Supports full-size image fetching.
 - **Video Generation** — Generates short videos from text prompts. Automatically polls until the video is ready and returns an authenticated download URL.
 - **Audio & Music Generation** — Supports generating audio and music content natively, returning both MP3 and MP4 formats.
@@ -17,9 +16,6 @@ An unofficial Node.js client for [Google Gemini](https://gemini.google.com), ins
 - **Extension Support** — Supports generating content with Gemini extensions such as YouTube and Gmail.
 - **Classified Outputs** — Categorizes text, thoughts, images, videos, and audio in the response.
 - **Streaming Mode** — Supports stream generation with an incremental stateful frame parser, yielding partial outputs as they are generated.
-- **Dynamic Model Discovery** — Automatically discovers available models from your account at initialization.
-- **Quota & Usage Info** — Exposes account quota, compute usage, and abuse status after initialization.
-- **Activity Watchdog** — Background heartbeat task that keeps the session alive automatically.
 
 ## Table of Contents
 
@@ -52,10 +48,7 @@ An unofficial Node.js client for [Google Gemini](https://gemini.google.com), ins
   - [Generate Content with Gemini Extensions](#generate-content-with-gemini-extensions)
   - [Check and Switch to Other Reply Candidates](#check-and-switch-to-other-reply-candidates)
   - [Deep Research](#deep-research)
-  - [Account Status](#account-status)
-  - [Quota and Usage Info](#quota-and-usage-info)
 - [Error Handling](#error-handling)
-- [Cookie Persistence](#cookie-persistence)
 - [Project Structure](#project-structure)
 - [References](#references)
 
@@ -69,38 +62,25 @@ npm install gemini-reverse
 
 - Go to [gemini.google.com](https://gemini.google.com) and log in with your Google account
 - Press F12 to open DevTools, go to the `Application` tab → `Cookies` → `https://gemini.google.com`
-- Copy the value of `__Secure-1PSID` (and optionally `__Secure-1PSIDTS`)
-
-> `__Secure-1PSIDTS` is optional — the client will attempt to refresh and cache it automatically after the first successful initialization.
+- Copy the value of `__Secure-1PSID`
 
 > If you don't have a Google account or want to test without authentication, see [Guest Mode](#guest-mode).
-
-Alternatively, you can export all cookies from your browser as a JSON file (Netscape/extension format) and pass the path or parsed array directly:
-
-```js
-const client = new Gemini({ cookies: './gemini_cookies.json' });
-// or
-const client = new Gemini({ cookies: require('./gemini_cookies.json') });
-```
 
 ## Usage
 
 ### Initialization
 
-Import the package and initialize a client with your cookies. After initialization, the client automatically refreshes `__Secure-1PSIDTS` in the background with random jitter, and starts a heartbeat watchdog to keep the session alive.
+Import the package and initialize a client with your cookies.
 
 ```js
 const { Gemini } = require('gemini-reverse');
 
 const client = new Gemini({
     secure_1psid: 'YOUR_SECURE_1PSID',
-    secure_1psidts: 'YOUR_SECURE_1PSIDTS', // optional
     proxy: null,                            // optional, e.g. 'http://host:port'
     timeout: 300000,                        // request timeout in ms, default 300000
     autoClose: false,                       // auto-close client after inactivity
     closeDelay: 300000,                     // inactivity delay before closing in ms
-    autoRefresh: true,                      // auto-refresh cookies + start watchdog
-    refreshInterval: 540000,               // cookie refresh interval in ms
     verbose: false,                         // enable verbose logging
 });
 
@@ -781,66 +761,6 @@ const result = await client._waitDeepResearch(
 console.log(result.text);
 ```
 
-### Account Status
-
-The client detects your account's capability tier at initialization and exposes it via `client.accountStatus`.
-
-```js
-const { Gemini, AccountStatus } = require('gemini-reverse');
-
-const client = new Gemini({ secure_1psid: 'YOUR_COOKIE' });
-await client.init();
-
-if (client.accountStatus === AccountStatus.AVAILABLE) {
-    console.log('Account is fully authorized.');
-} else if (client.accountStatus === AccountStatus.UNAUTHENTICATED) {
-    console.error('Cookies are expired or invalid.');
-} else if (client.accountStatus === AccountStatus.LOCATION_REJECTED) {
-    console.error('Gemini is not available in your region.');
-} else {
-    console.warn(`Account status: ${client.accountStatus.name} — ${client.accountStatus.description}`);
-}
-```
-
-**All account status values:**
-
-| Constant | Code | Description |
-|---|---|---|
-| `AccountStatus.AVAILABLE` | 1000 | Account is authorized and has normal access |
-| `AccountStatus.ACCESS_TEMPORARILY_UNAVAILABLE` | 1014 | Access restricted, possibly regional/temporary |
-| `AccountStatus.UNAUTHENTICATED` | 1016 | Cookies have expired or are invalid |
-| `AccountStatus.ACCOUNT_REJECTED` | 1021 | Account access rejected |
-| `AccountStatus.ACCOUNT_UNTRUSTED` | 1033 | Did not pass safety/trust checks |
-| `AccountStatus.TOS_PENDING` | 1040 | Must accept latest Terms of Service |
-| `AccountStatus.TOS_OUT_OF_DATE` | 1042 | Terms of Service are out of date |
-| `AccountStatus.ACCOUNT_REJECTED_BY_GUARDIAN` | 1054 | Blocked by parent or guardian |
-| `AccountStatus.GUARDIAN_APPROVAL_REQUIRED` | 1057 | Requires parental approval |
-| `AccountStatus.LOCATION_REJECTED` | 1060 | Not available in your country/region |
-
-### Quota and Usage Info
-
-After initialization, the client fetches account quota and usage metrics. Access them via the `account()` method.
-
-```js
-const info = await client.account();
-
-console.log('Status:', info.status.name);
-console.log('Tier:', info.usage?.tier?.label);
-
-for (const model of info.models) {
-    console.log(`Model: ${model.name} (${model.id}) — available: ${model.available}`);
-}
-
-for (const [id, q] of Object.entries(info.quotas)) {
-    if (id === 'usage_info') continue;
-    console.log(`Quota [${id}]:`, q);
-}
-
-if (info.abuse_clean !== null) {
-    console.log('Account clean:', info.abuse_clean);
-}
-```
-
 ## Error Handling
 
 ```js
@@ -848,7 +768,6 @@ const {
     AuthError,
     APIError,
     GeminiError,
-    TimeoutError,
     UsageLimitExceeded,
     ModelInvalid,
     TemporarilyBlocked,
@@ -864,8 +783,6 @@ try {
         console.error('Usage limit reached. Try again later or switch to a different model.');
     } else if (e instanceof TemporarilyBlocked) {
         console.error('IP temporarily blocked by Google. Try using a proxy or wait a while.');
-    } else if (e instanceof TimeoutError) {
-        console.error('Request timed out. Try increasing the timeout value.');
     } else if (e instanceof ModelInvalid) {
         console.error('Invalid or unavailable model. Try a different model.');
     } else if (e instanceof APIError) {
@@ -882,29 +799,11 @@ try {
 Error
 ├── AuthError
 ├── APIError
-│   └── ImageGenerationError
 └── GeminiError
-    ├── TimeoutError
     ├── UsageLimitExceeded
     ├── ModelInvalid
     └── TemporarilyBlocked
 ```
-
-## Cookie Persistence
-
-If your application runs in a containerized environment (e.g. Docker), you can persist the refreshed cookie cache to a volume. The cookies are automatically saved and loaded from the path specified in the `GEMINI_COOKIE_PATH` environment variable.
-
-```yaml
-# docker-compose.yml
-services:
-    app:
-        environment:
-            GEMINI_COOKIE_PATH: /data/gemini_cache
-        volumes:
-            - ./gemini_cookies:/data/gemini_cache
-```
-
-By default, the cache is stored inside the package directory under `temp/`.
 
 ## Project Structure
 
@@ -914,7 +813,7 @@ gemini-reverse/
 ├── src/
 │   ├── gemini.js           # Gemini client (main class)
 │   ├── chat.js             # ChatSession class
-│   ├── constants.js        # Endpoint, GRPC, Headers, Model, AccountStatus, ErrorCode
+│   ├── constants.js        # Endpoint, GRPC, Headers, Model, ErrorCode
 │   ├── errors.js           # custom error classes
 │   ├── types/
 │   │   ├── model.js        # AvailableModel, RPCData

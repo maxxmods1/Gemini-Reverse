@@ -44,24 +44,6 @@ export declare const Model: {
     modelId(model: ModelDef): string;
 };
 
-export declare class AccountStatus {
-    readonly name: string;
-    readonly value: number;
-    readonly description: string;
-    constructor(name: string, value: number, description: string);
-    static fromStatusCode(code: number | null | undefined): AccountStatus;
-    static readonly AVAILABLE: AccountStatus;
-    static readonly ACCESS_TEMPORARILY_UNAVAILABLE: AccountStatus;
-    static readonly UNAUTHENTICATED: AccountStatus;
-    static readonly ACCOUNT_REJECTED: AccountStatus;
-    static readonly ACCOUNT_UNTRUSTED: AccountStatus;
-    static readonly TOS_PENDING: AccountStatus;
-    static readonly TOS_OUT_OF_DATE: AccountStatus;
-    static readonly ACCOUNT_REJECTED_BY_GUARDIAN: AccountStatus;
-    static readonly GUARDIAN_APPROVAL_REQUIRED: AccountStatus;
-    static readonly LOCATION_REJECTED: AccountStatus;
-}
-
 export declare const ErrorCode: {
     readonly TEMPORARY_ERROR_1013: 1013;
     readonly USAGE_LIMIT_EXCEEDED: 1037;
@@ -77,9 +59,7 @@ export declare const Headers: Record<string, Record<string, string>>;
 
 export declare class AuthError extends Error { name: 'AuthError'; }
 export declare class APIError extends Error { name: 'APIError'; }
-export declare class ImageGenerationError extends APIError { name: 'ImageGenerationError'; }
 export declare class GeminiError extends Error { name: 'GeminiError'; }
-export declare class TimeoutError extends GeminiError { name: 'TimeoutError'; }
 export declare class UsageLimitExceeded extends GeminiError { name: 'UsageLimitExceeded'; }
 export declare class ModelInvalid extends GeminiError { name: 'ModelInvalid'; }
 export declare class TemporarilyBlocked extends GeminiError { name: 'TemporarilyBlocked'; }
@@ -106,9 +86,6 @@ export declare class AvailableModel {
     get model_header(): ModelHeader;
     get advanced_only(): boolean;
     toString(): string;
-    static computeCapacity(tierFlags: number[], capabilityFlags: number[]): [number, number];
-    static buildModelIdNameMapping(): Record<string, string>;
-    static buildModelIdNumberMapping(): Record<string, number>;
 }
 
 export declare class RPCData {
@@ -395,14 +372,10 @@ export declare class GemJar {
 
 export interface GeminiOptions {
     secure_1psid?: string | null;
-    secure_1psidts?: string | null;
     proxy?: string | null;
-    cookies?: Record<string, string> | string | Array<{ name: string; value: string }>;
     timeout?: number;
     autoClose?: boolean;
     closeDelay?: number;
-    autoRefresh?: boolean;
-    refreshInterval?: number;
     verbose?: boolean;
     watchdogTimeout?: number;
 }
@@ -449,14 +422,6 @@ export interface SetGemOptions {
     description?: string;
 }
 
-export interface AccountInfo {
-    status: { code: number | undefined; name: string };
-    models: { id: string; name: string; display_name: string; available: boolean }[];
-    usage: Record<string, unknown>;
-    quotas: Record<string, unknown>;
-    abuse_clean: boolean | null;
-}
-
 export declare class Gemini {
     cookies: Record<string, string>;
     proxy: string | null;
@@ -465,12 +430,9 @@ export declare class Gemini {
     sessionId: string | null;
     language: string;
     pushId: string;
-    accountStatus: AccountStatus;
     timeout: number;
     autoClose: boolean;
     closeDelay: number;
-    autoRefresh: boolean;
-    refreshInterval: number;
     verbose: boolean;
     watchdogTimeout: number;
 
@@ -483,7 +445,6 @@ export declare class Gemini {
     ask(prompt: string, opts?: AskOptions): Promise<ModelOutput>;
 
     models(): Promise<AvailableModel[]>;
-    account(): Promise<AccountInfo>;
 
     chats(): Promise<unknown[]>;
     readChat(cid: string, limit?: number): Promise<{ role: string; text: string; images?: (WebImage | GeneratedImage)[]; videos?: GeneratedVideo[]; media?: GeneratedMedia[] }[]>;
