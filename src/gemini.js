@@ -1195,6 +1195,14 @@ class Gemini {
         else if (hasAdvanced) tierId = 2;
         else if (hasPlus) tierId = 4;
         else if (hasHelium) tierId = 2;
+        if (tierId === 1) {
+            const higher = models.some(m => {
+                const n = (m.model_name || '').toLowerCase();
+                const d = (m.display_name || '').toLowerCase();
+                return n.includes('pro') || d.includes('pro') || n.includes('think') || d.includes('think') || n.includes('advanced') || d.includes('advanced') || n.includes('flash') || d.includes('flash');
+            });
+            if (higher) tierId = 2;
+        }
         return { id: tierId, label: tierLabels[tierId] || null };
     }
 

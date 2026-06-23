@@ -107,7 +107,7 @@ const Headers = {
 
 const _MODEL_KEYS = [
     'UNSPECIFIED',
-    'BASIC_PRO', 'BASIC_FLASH', 'BASIC_LITE',
+    'BASIC_PRO', 'BASIC_FLASH', 'BASIC_LITE', 'BASIC_THINKING',
     'PLUS_PRO', 'PLUS_FLASH', 'PLUS_LITE',
     'ADVANCED_PRO', 'ADVANCED_FLASH', 'ADVANCED_LITE',
 ];
@@ -127,6 +127,11 @@ const Model = {
     BASIC_LITE: {
         model_name: 'gemini-3-lite',
         model_header: buildModelHeader('cf41b0e0dd7d53e5', 1, 6),
+        advanced_only: false,
+    },
+    BASIC_THINKING: {
+        model_name: 'gemini-3-thinking',
+        model_header: buildModelHeader('5bf011840784117a', 1, 15),
         advanced_only: false,
     },
     PLUS_PRO: {
