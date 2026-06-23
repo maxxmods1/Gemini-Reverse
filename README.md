@@ -8,8 +8,9 @@ An unofficial Node.js client for [Google Gemini](https://gemini.google.com), ins
 
 - **Anonymous Mode** — Works without any Google account or cookies. Supports multi-turn chat sessions in anonymous mode.
 - **Persistent Cookies** — Automatically refreshes cookies in the background with jitter to prevent synchronized requests. Optimized for always-on services.
-- **Image Generation** — Natively supports generating and editing images with natural language.
-- **Video & Audio Generation** — Supports generating videos and audio/music content natively.
+- **Image Generation** — Natively supports generating and editing images with natural language. Supports full-size image fetching.
+- **Video Generation** — Generates short videos from text prompts. Automatically polls until the video is ready and returns an authenticated download URL.
+- **Audio & Music Generation** — Supports generating audio and music content natively, returning both MP3 and MP4 formats.
 - **Deep Research** — Full deep research workflow with plan creation, status polling, and result retrieval.
 - **Extended Thinking** — Enables deeper reasoning mode on supported models.
 - **System Prompt via Gems** — Supports customizing the model's behavior with [Gemini Gems](https://gemini.google.com/gems/view).
@@ -28,6 +29,7 @@ An unofficial Node.js client for [Google Gemini](https://gemini.google.com), ins
   - [Initialization](#initialization)
   - [Anonymous Mode](#anonymous-mode)
   - [Generate Content](#generate-content)
+  - [Response Object](#response-object)
   - [Generate Content with Files](#generate-content-with-files)
   - [Conversations Across Multiple Turns](#conversations-across-multiple-turns)
   - [Continue Previous Conversations](#continue-previous-conversations)
@@ -42,9 +44,10 @@ An unofficial Node.js client for [Google Gemini](https://gemini.google.com), ins
   - [Apply System Prompt with Gemini Gems](#apply-system-prompt-with-gemini-gems)
   - [Manage Custom Gems](#manage-custom-gems)
   - [Retrieve Model's Thought Process](#retrieve-models-thought-process)
-  - [Retrieve Images in Response](#retrieve-images-in-response)
-  - [Generate and Edit Images](#generate-and-edit-images)
-  - [Retrieve Videos and Audio](#retrieve-videos-and-audio)
+  - [Images in Response](#images-in-response)
+  - [Image Generation](#image-generation)
+  - [Video Generation](#video-generation)
+  - [Audio & Music Generation](#audio--music-generation)
   - [Generate Content with Gemini Extensions](#generate-content-with-gemini-extensions)
   - [Check and Switch to Other Reply Candidates](#check-and-switch-to-other-reply-candidates)
   - [Deep Research](#deep-research)
@@ -70,6 +73,14 @@ npm install gemini-reverse
 > `__Secure-1PSIDTS` is optional — the client will attempt to refresh and cache it automatically after the first successful initialization.
 
 > If you don't have a Google account or want to test without authentication, see [Anonymous Mode](#anonymous-mode).
+
+Alternatively, you can export all cookies from your browser as a JSON file (Netscape/extension format) and pass the path or parsed array directly:
+
+```js
+const client = new Gemini({ cookies: './gemini_cookies.json' });
+// or
+const client = new Gemini({ cookies: require('./gemini_cookies.json') });
+```
 
 ## Usage
 
@@ -117,7 +128,7 @@ const r2 = await chat.generateContent({ prompt: 'What is my name?' });
 console.log(r2.text); // remembers "Rynn" from the previous turn
 ```
 
-> Anonymous mode is limited to the Gemini Flash model. Features like file uploads, deep research, gems, and chat history management require authentication.
+> Anonymous mode is limited to the Gemini Flash model. Features like file uploads, deep research, gems, image/video generation, and chat history management require authentication.
 
 ### Generate Content
 
@@ -133,6 +144,20 @@ const response = await chat.generateContent({ prompt: 'What is the capital of Fr
 console.log(response.text);
 ```
 
+### Response Object
+
+Every `generateContent` call returns a `Response` object with the following properties:
+
+| Property | Type | Description |
+|---|---|---|
+| `text` | `string` | The generated text response (HTML entities decoded) |
+| `thoughts` | `string \| null` | The model's internal reasoning (if available) |
+| `images` | `Array<WebImage \| GeneratedImage>` | Images in the response (both web and generated) |
+| `videos` | `Array<GeneratedVideo>` | Generated videos |
+| `media` | `Array<GeneratedMedia>` | Generated audio/music (MP3 + MP4) |
+
+All media objects expose a `.save()` method for downloading files to disk. See the relevant sections below for details.
+
 ### Generate Content with Files
 
 Gemini supports file input, including images and documents. Pass an array of file paths alongside your text prompt.
@@ -147,6 +172,8 @@ const response = await chat.generateContent({
 });
 console.log(response.text);
 ```
+
+Supported file types include images (`jpg`, `png`, `webp`, `gif`), PDFs, and other documents accepted by the Gemini web interface.
 
 ### Conversations Across Multiple Turns
 
@@ -203,6 +230,8 @@ for (const turn of history) {
 }
 ```
 
+Each turn also exposes `images`, `videos`, and `media` arrays — useful for reading back previously generated media from history.
+
 ### List Recent Chats
 
 Use `chats()` to get a cached list of recent chat sessions fetched at initialization.
@@ -212,7 +241,7 @@ Use `chats()` to get a cached list of recent chat sessions fetched at initializa
 ```js
 const chatList = await client.chats();
 for (const info of chatList) {
-    console.log(info);
+    console.log(`[${info.cid}] ${info.title} — pinned: ${info.pinned}`);
 }
 ```
 
@@ -409,67 +438,179 @@ if (response.thoughts) {
 console.log('Answer:', response.text);
 ```
 
-### Retrieve Images in Response
+### Images in Response
 
-Images in the response are stored in `response.images`. Each image object has a `url`, `alt`, and `type` (`'web'` or `'generated'`).
+When Gemini returns web images (e.g. when you ask it to "show me pictures"), they are available in `response.images` as `WebImage` objects.
 
 ```js
 const chat = client.newChat();
 const response = await chat.generateContent({ prompt: 'Show me pictures of cats.' });
 
 for (const image of response.images) {
-    console.log(`[${image.type}] ${image.url}`);
-    if (image.alt) console.log(`  Alt: ${image.alt}`);
+    console.log(`URL: ${image.url}`);
+    console.log(`Alt: ${image.alt}`);
 }
 ```
 
-### Generate and Edit Images
+**`WebImage` properties:**
 
-Ask Gemini to generate or edit images using natural language. Generated images are returned as objects with a downloadable `url`.
+| Property | Type | Description |
+|---|---|---|
+| `url` | `string` | Direct image URL |
+| `title` | `string` | Title (e.g. `[Image 1]`) |
+| `alt` | `string` | Alt text |
 
-> Google has limitations on image generation availability that vary by region and account type. Users under 18 cannot use this feature.
+### Image Generation
+
+Ask Gemini to generate or edit images using natural language. Generated images are returned as `GeneratedImage` objects with a `.save()` method.
+
+> Image generation availability varies by region and account type. Users under 18 cannot use this feature.
 
 ```js
 const chat = client.newChat();
 const response = await chat.generateContent({
-    prompt: 'Generate a photo-realistic image of a cat in a space suit.',
+    prompt: 'Generate a photo-realistic image of a cat astronaut floating in space.',
 });
 
 for (const image of response.images) {
-    console.log('Generated image URL:', image.url);
+    const savedPath = await image.save({
+        path: './output',
+        verbose: true,
+    });
+    console.log('Saved to:', savedPath);
 }
 ```
 
-> When asking Gemini to "send" images, it returns web images. When asking to "generate" images, it returns AI-generated images. Both are automatically categorized in `response.images`.
+**`GeneratedImage` properties:**
 
-### Retrieve Videos and Audio
+| Property | Type | Description |
+|---|---|---|
+| `url` | `string` | Image URL (may require auth cookies for full size) |
+| `alt` | `string` | Alt text / description |
+| `cid`, `rid`, `rcid` | `string` | Conversation IDs for full-size fetching |
+| `image_id` | `string` | Internal image ID |
 
-Gemini can generate short videos and audio/music. These are returned in `response.videos` and `response.media` respectively.
+**`GeneratedImage.save()` options:**
 
-> You may need an active Gemini subscription to access video and audio generation.
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `path` | `string` | `'temp'` | Directory to save the image |
+| `filename` | `string \| null` | `null` | Custom filename (auto-generated if omitted) |
+| `verbose` | `boolean` | `false` | Log download progress |
+| `fullSize` | `boolean` | `true` | Attempt to fetch the highest resolution version |
+
+When asking Gemini to "send" images, it returns web images from the web. When asking to "generate" images, it returns AI-generated `GeneratedImage` objects. Both are combined in `response.images`.
+
+**Edit an existing image:**
 
 ```js
-// Generate a video
-const chat = client.newChat();
-const videoResponse = await chat.generateContent({
-    prompt: 'Generate a short video of waves on a beach.',
+const res1 = await chat.generateContent({
+    prompt: 'Generate an image of a sunset over the ocean.',
 });
 
-for (const video of videoResponse.videos) {
-    console.log('Video URL:', video.url);
-    console.log('Thumbnail:', video.thumbnail);
-}
-
-// Generate audio/music
-const mediaResponse = await chat.generateContent({
-    prompt: 'Compose a short calming piano melody.',
+// Follow up in the same chat session to edit
+const res2 = await chat.generateContent({
+    prompt: 'Now add a sailboat in the foreground.',
 });
 
-for (const media of mediaResponse.media) {
-    console.log('MP3 URL:', media.mp3_url);
-    console.log('MP4 URL:', media.url);
+for (const image of res2.images) {
+    await image.save({ path: './output', verbose: true });
 }
 ```
+
+### Video Generation
+
+Gemini can generate short videos from a text description. Video generation is asynchronous — Gemini returns a task ID and the client automatically polls `READ_CHAT` in the background until the video is ready, then returns a `GeneratedVideo` object with an authenticated download URL.
+
+> Video generation requires a Gemini Advanced subscription. Generation may take several minutes. The client respects your configured `timeout` during polling.
+
+```js
+const chat = client.newChat();
+const response = await chat.generateContent({
+    prompt: 'Generate a short video of a sunset over the ocean with waves.',
+});
+
+for (const video of response.videos) {
+    console.log('Video URL:', video.url);
+    console.log('Thumbnail:', video.thumbnail);
+
+    const result = await video.save({
+        savePath: './output',
+        verbose: true,
+    });
+
+    console.log('Saved video:', result.video);
+    console.log('Saved thumbnail:', result.video_thumbnail);
+}
+```
+
+**`GeneratedVideo` properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `url` | `string` | Authenticated download URL (`contribution.usercontent.google.com`) |
+| `thumbnail` | `string \| null` | Thumbnail image URL |
+| `cid`, `rid`, `rcid` | `string` | Conversation IDs |
+
+**`GeneratedVideo.save()` options:**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `savePath` | `string` | `'temp'` | Directory to save the video |
+| `filename` | `string \| null` | `null` | Custom base filename (auto-generated if omitted) |
+| `verbose` | `boolean` | `false` | Log download progress |
+
+**Returns:** `{ video: string, video_thumbnail: string | null }` — absolute paths to the saved files.
+
+> The video download URL requires authentication cookies. The client handles this automatically. If the URL returns HTTP 206, the video is still processing — `save()` will keep retrying every 10 seconds automatically.
+
+### Audio & Music Generation
+
+Gemini can generate audio and music from text prompts. Audio responses are returned as `GeneratedMedia` objects containing both MP3 and MP4 versions.
+
+> Audio generation availability depends on your account and region.
+
+```js
+const chat = client.newChat();
+const response = await chat.generateContent({
+    prompt: 'Compose a short upbeat piano melody, 15 seconds long.',
+});
+
+for (const media of response.media) {
+    console.log('MP3 URL:', media.mp3_url);
+    console.log('MP4 URL:', media.url);
+
+    const result = await media.save({
+        savePath: './output',
+        verbose: true,
+    });
+
+    console.log('MP4 saved:', result.mp4);
+    console.log('MP3 saved:', result.mp3);
+}
+```
+
+**`GeneratedMedia` properties:**
+
+| Property | Type | Description |
+|---|---|---|
+| `url` | `string` | MP4 video URL |
+| `thumbnail` | `string \| null` | MP4 thumbnail URL |
+| `mp3_url` | `string` | MP3 audio URL |
+| `mp3_thumbnail` | `string \| null` | MP3 thumbnail URL |
+| `cid`, `rid`, `rcid` | `string` | Conversation IDs |
+
+**`GeneratedMedia.save()` options:**
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `savePath` | `string` | `'temp'` | Directory to save the files |
+| `filename` | `string \| null` | `null` | Custom base filename (auto-generated if omitted) |
+| `verbose` | `boolean` | `false` | Log download progress |
+
+**Returns:** `{ mp4: string | null, mp3: string | null, mp4_thumbnail: string | null, mp3_thumbnail: string | null }`.
+
+> Like video, if a media file returns HTTP 206 (still processing), `save()` retries automatically every 10 seconds until the file is available.
 
 ### Generate Content with Gemini Extensions
 
@@ -493,26 +634,18 @@ console.log(youtubeResponse.text);
 
 ### Check and Switch to Other Reply Candidates
 
-A Gemini response may contain multiple reply candidates. You can inspect all candidates from `response` and switch to a different one by updating `chat.rcid` before the next turn.
+A Gemini response may contain multiple reply candidates. You can inspect all candidates and switch to a different one by updating `chat.rcid` before the next turn.
 
 ```js
 const chat = client.newChat();
 const response = await chat.generateContent({ prompt: 'Recommend a sci-fi book.' });
 
-// response._rcid is the chosen candidate's rcid (from ChatSession internals)
-// To see all candidates, use _generateContent directly:
-const { ModelOutput } = require('gemini-reverse');
-
-let lastOutput;
-for await (const out of chat.generateContentStream({ prompt: 'Recommend another book.' })) {
-    // streaming yields text_delta strings; access full output via chat.lastOutput
-}
-
 if (chat.lastOutput && chat.lastOutput.candidates.length > 1) {
     chat.lastOutput.candidates.forEach((c, i) => {
         console.log(`[${i}] ${c.text.slice(0, 80)}...`);
     });
-    // Pick a different candidate by setting rcid on the chat
+
+    // Switch to the second candidate
     chat.rcid = chat.lastOutput.candidates[1].rcid;
 }
 
@@ -524,7 +657,7 @@ console.log(followup.text);
 
 Gemini's deep research feature is an autonomous agent that browses the web, analyzes sources, and produces a comprehensive report.
 
-> You may need an active Gemini subscription to access deep research.
+> Deep research requires an active Gemini Advanced subscription.
 
 **Quick one-call method:**
 
@@ -613,12 +746,14 @@ After initialization, the client fetches account quota and usage metrics. Access
 const info = await client.account();
 
 console.log('Status:', info.status.name);
+console.log('Tier:', info.usage?.tier?.label);
 
 for (const model of info.models) {
     console.log(`Model: ${model.name} (${model.id}) — available: ${model.available}`);
 }
 
 for (const [id, q] of Object.entries(info.quotas)) {
+    if (id === 'usage_info') continue;
     console.log(`Quota [${id}]:`, q);
 }
 
@@ -690,7 +825,7 @@ services:
             - ./gemini_cookies:/data/gemini_cache
 ```
 
-By default, the cache is stored inside the package directory under `utils/temp/`.
+By default, the cache is stored inside the package directory under `temp/`.
 
 ## Project Structure
 
